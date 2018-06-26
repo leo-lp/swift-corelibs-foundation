@@ -79,6 +79,19 @@ open class UnitConverterLinear : UnitConverter, NSSecureCoding {
     }
     
     public static var supportsSecureCoding: Bool { return true }
+    
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitConverterLinear else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return self.coefficient == other.coefficient
+            && self.constant == other.constant
+    }
 }
 
 private class UnitConverterReciprocal : UnitConverter, NSSecureCoding {
@@ -115,6 +128,18 @@ private class UnitConverterReciprocal : UnitConverter, NSSecureCoding {
     }
     
     fileprivate static var supportsSecureCoding: Bool { return true }
+    
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitConverterReciprocal else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return self.reciprocal == other.reciprocal
+    }
 }
 
 /*
@@ -127,7 +152,7 @@ open class Unit : NSObject, NSCopying, NSSecureCoding {
     open private(set) var symbol: String
     
     
-    public init(symbol: String) {
+    public required init(symbol: String) {
         self.symbol = symbol
     }
     
@@ -150,8 +175,20 @@ open class Unit : NSObject, NSCopying, NSSecureCoding {
         }
         aCoder.encode(self.symbol._bridgeToObjectiveC(), forKey:"NS.symbol")
     }
-
+    
     public static var supportsSecureCoding: Bool { return true }
+    
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? Unit else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return self.symbol == other.symbol
+    }
 }
 
 open class Dimension : Unit {
@@ -159,8 +196,7 @@ open class Dimension : Unit {
     
     open private(set) var converter: UnitConverter
     
-    
-    public init(symbol: String, converter: UnitConverter) {
+    public required init(symbol: String, converter: UnitConverter) {
         self.converter = converter
         super.init(symbol: symbol)
     }
@@ -186,12 +222,29 @@ open class Dimension : Unit {
         super.init(symbol: symbol)
     }
     
+    public required init(symbol: String) {
+        let T = type(of: self)
+        fatalError("\(T) must be initialized with designated initializer \(T).init(symbol: String, converter: UnitConverter)")
+    }
+    
     open override func encode(with aCoder: NSCoder) {
         super.encode(with: aCoder)
         guard aCoder.allowsKeyedCoding else {
             preconditionFailure("Unkeyed coding is unsupported.")
         }
         aCoder.encode(self.converter, forKey:"converter")
+    }
+    
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? Dimension else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object) && self.converter == other.converter
     }
 }
 
@@ -211,8 +264,8 @@ open class UnitAcceleration : Dimension {
         static let gravity                  = 9.81
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
     
     open class var metersPerSecondSquared: UnitAcceleration {
@@ -228,12 +281,20 @@ open class UnitAcceleration : Dimension {
     }
     
     open override class func baseUnit() -> UnitAcceleration {
-        return UnitAcceleration.metersPerSecondSquared
+        return .metersPerSecondSquared
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitAcceleration else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitAngle : Dimension {
@@ -260,10 +321,9 @@ open class UnitAngle : Dimension {
         static let revolutions  = 360.0
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
-    
     
     open class var degrees: UnitAngle {
         get {
@@ -302,12 +362,20 @@ open class UnitAngle : Dimension {
     }
     
     open override class func baseUnit() -> UnitAngle {
-        return UnitAngle.degrees
+        return .degrees
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitAngle else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitArea : Dimension {
@@ -350,10 +418,9 @@ open class UnitArea : Dimension {
         static let hectares             = 10000.0
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
-    
     
     open class var squareMegameters: UnitArea {
         get {
@@ -440,12 +507,20 @@ open class UnitArea : Dimension {
     }
     
     open override class func baseUnit() -> UnitArea {
-        return UnitArea.squareMeters
+        return .squareMeters
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitArea else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitConcentrationMass : Dimension {
@@ -466,10 +541,9 @@ open class UnitConcentrationMass : Dimension {
         static let millimolesPerLiter       = 18.0
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
-    
     
     open class var gramsPerLiter: UnitConcentrationMass {
         get {
@@ -491,9 +565,17 @@ open class UnitConcentrationMass : Dimension {
         return UnitConcentrationMass.gramsPerLiter
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitConcentrationMass else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitDispersion : Dimension {
@@ -510,10 +592,9 @@ open class UnitDispersion : Dimension {
         static let partsPerMillion  = 1.0
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
-    
     
     open class var partsPerMillion: UnitDispersion {
         get {
@@ -522,12 +603,20 @@ open class UnitDispersion : Dimension {
     }
     
     open override class func baseUnit() -> UnitDispersion {
-        return UnitDispersion.partsPerMillion
+        return .partsPerMillion
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitDispersion else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitDuration : Dimension {
@@ -548,8 +637,8 @@ open class UnitDuration : Dimension {
         static let hours    = 3600.0
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
     
     open class var seconds: UnitDuration {
@@ -571,12 +660,20 @@ open class UnitDuration : Dimension {
     }
     
     open override class func baseUnit() -> UnitDuration {
-        return UnitDuration.seconds
+        return .seconds
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitDuration else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitElectricCharge : Dimension {
@@ -602,10 +699,9 @@ open class UnitElectricCharge : Dimension {
         static let microampereHours = 0.0036
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
-    
     
     open class var coulombs: UnitElectricCharge {
         get {
@@ -644,12 +740,20 @@ open class UnitElectricCharge : Dimension {
     }
     
     open override class func baseUnit() -> UnitElectricCharge {
-        return UnitElectricCharge.coulombs
+        return .coulombs
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitElectricCharge else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitElectricCurrent : Dimension {
@@ -657,6 +761,7 @@ open class UnitElectricCurrent : Dimension {
     /*
      Base unit - amperes
      */
+    
     private struct Symbol {
         static let megaamperes  = "MA"
         static let kiloamperes  = "kA"
@@ -674,10 +779,9 @@ open class UnitElectricCurrent : Dimension {
         
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
-    
     
     open class var megaamperes: UnitElectricCurrent {
         get {
@@ -710,12 +814,20 @@ open class UnitElectricCurrent : Dimension {
     }
     
     open override class func baseUnit() -> UnitElectricCurrent {
-        return UnitElectricCurrent.amperes
+        return .amperes
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitElectricCurrent else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitElectricPotentialDifference : Dimension {
@@ -741,10 +853,9 @@ open class UnitElectricPotentialDifference : Dimension {
         
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
-    
     
     open class var megavolts: UnitElectricPotentialDifference {
         get {
@@ -777,12 +888,20 @@ open class UnitElectricPotentialDifference : Dimension {
     }
     
     open override class func baseUnit() -> UnitElectricPotentialDifference {
-        return UnitElectricPotentialDifference.volts
+        return .volts
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitElectricPotentialDifference else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitElectricResistance : Dimension {
@@ -808,8 +927,8 @@ open class UnitElectricResistance : Dimension {
         
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
     
     open class var megaohms: UnitElectricResistance {
@@ -843,12 +962,20 @@ open class UnitElectricResistance : Dimension {
     }
     
     open override class func baseUnit() -> UnitElectricResistance {
-        return UnitElectricResistance.ohms
+        return .ohms
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitElectricResistance else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitEnergy : Dimension {
@@ -874,8 +1001,8 @@ open class UnitEnergy : Dimension {
         
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
     
     open class var kilojoules: UnitEnergy {
@@ -909,12 +1036,20 @@ open class UnitEnergy : Dimension {
     }
     
     open override class func baseUnit() -> UnitEnergy {
-        return UnitEnergy.joules
+        return .joules
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitEnergy else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitFrequency : Dimension {
@@ -945,10 +1080,9 @@ open class UnitFrequency : Dimension {
         static let nanohertz    = 1e-9
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
-    
     
     open class var terahertz: UnitFrequency {
         get {
@@ -999,12 +1133,20 @@ open class UnitFrequency : Dimension {
     }
     
     open override class func baseUnit() -> UnitFrequency {
-        return UnitFrequency.hertz
+        return .hertz
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitFrequency else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitFuelEfficiency : Dimension {
@@ -1025,10 +1167,9 @@ open class UnitFuelEfficiency : Dimension {
         static let milesPerGallon           = 235.215
     }
     
-    private init(symbol: String, reciprocal: Double) {
-        super.init(symbol: symbol, converter: UnitConverterReciprocal(reciprocal: reciprocal))
+    private convenience init(symbol: String, reciprocal: Double) {
+        self.init(symbol: symbol, converter: UnitConverterReciprocal(reciprocal: reciprocal))
     }
-    
     
     open class var litersPer100Kilometers: UnitFuelEfficiency {
         get {
@@ -1049,12 +1190,20 @@ open class UnitFuelEfficiency : Dimension {
     }
     
     open override class func baseUnit() -> UnitFuelEfficiency {
-        return UnitFuelEfficiency.litersPer100Kilometers
+        return .litersPer100Kilometers
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitFuelEfficiency else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitLength : Dimension {
@@ -1113,8 +1262,8 @@ open class UnitLength : Dimension {
         static let parsecs              = 3.086e+16
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
     
     open class var megameters: UnitLength {
@@ -1250,12 +1399,20 @@ open class UnitLength : Dimension {
     }
     
     open override class func baseUnit() -> UnitLength {
-        return UnitLength.meters
+        return .meters
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitLength else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitIlluminance : Dimension {
@@ -1272,8 +1429,8 @@ open class UnitIlluminance : Dimension {
         static let lux   = 1.0
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
     
     open class var lux: UnitIlluminance {
@@ -1283,12 +1440,20 @@ open class UnitIlluminance : Dimension {
     }
     
     open override class func baseUnit() -> UnitIlluminance {
-        return UnitIlluminance.lux
+        return .lux
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitIlluminance else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitMass : Dimension {
@@ -1335,8 +1500,8 @@ open class UnitMass : Dimension {
         static let slugs        = 14.5939
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
     
     open class var kilograms: UnitMass {
@@ -1436,12 +1601,20 @@ open class UnitMass : Dimension {
     }
     
     open override class func baseUnit() -> UnitMass {
-        return UnitMass.kilograms
+        return .kilograms
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitMass else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitPower : Dimension {
@@ -1459,8 +1632,8 @@ open class UnitPower : Dimension {
         static let milliwatts = "mW"
         static let microwatts = "µW"
         static let nanowatts  = "nW"
-        static let picowatts  = "nW"
-        static let femtowatts = "nHz"
+        static let picowatts  = "pW"
+        static let femtowatts = "fW"
         static let horsepower = "hp"
     }
     
@@ -1478,8 +1651,8 @@ open class UnitPower : Dimension {
         static let horsepower = 745.7
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
     
     open class var terawatts: UnitPower {
@@ -1549,12 +1722,20 @@ open class UnitPower : Dimension {
     }
     
     open override class func baseUnit() -> UnitPower {
-        return UnitPower.watts
+        return .watts
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitPower else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitPressure : Dimension {
@@ -1589,10 +1770,9 @@ open class UnitPressure : Dimension {
         static let poundsForcePerSquareInch = 6894.76
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
-    
     
     open class var newtonsPerMetersSquared: UnitPressure {
         get {
@@ -1655,12 +1835,20 @@ open class UnitPressure : Dimension {
     }
     
     open override class func baseUnit() -> UnitPressure {
-        return UnitPressure.newtonsPerMetersSquared
+        return .newtonsPerMetersSquared
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitPressure else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitSpeed : Dimension {
@@ -1683,10 +1871,9 @@ open class UnitSpeed : Dimension {
         static let knots                = 0.514444
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
-    
     
     open class var metersPerSecond: UnitSpeed {
         get {
@@ -1713,12 +1900,20 @@ open class UnitSpeed : Dimension {
     }
     
     open override class func baseUnit() -> UnitSpeed {
-        return UnitSpeed.metersPerSecond
+        return .metersPerSecond
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitSpeed else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitTemperature : Dimension {
@@ -1745,8 +1940,8 @@ open class UnitTemperature : Dimension {
         static let fahrenheit = 255.37222222222427
     }
     
-    private init(symbol: String, coefficient: Double, constant: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient, constant: constant))
+    private convenience init(symbol: String, coefficient: Double, constant: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient, constant: constant))
     }
     
     open class var kelvin: UnitTemperature {
@@ -1768,12 +1963,20 @@ open class UnitTemperature : Dimension {
     }
     
     open override class func baseUnit() -> UnitTemperature {
-        return UnitTemperature.kelvin
+        return .kelvin
     }
     
-    
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitTemperature else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }
 
 open class UnitVolume : Dimension {
@@ -1850,10 +2053,9 @@ open class UnitVolume : Dimension {
         static let metricCups           = 0.25
     }
     
-    private init(symbol: String, coefficient: Double) {
-        super.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
+    private convenience init(symbol: String, coefficient: Double) {
+        self.init(symbol: symbol, converter: UnitConverterLinear(coefficient: coefficient))
     }
-    
     
     open class var megaliters: UnitVolume {
         get {
@@ -2042,9 +2244,18 @@ open class UnitVolume : Dimension {
     }
     
     open override class func baseUnit() -> UnitVolume {
-        return UnitVolume.liters
+        return .liters
     }
     
-    public required init?(coder aDecoder: NSCoder) { super.init(coder: aDecoder) }
-    open override func encode(with aCoder: NSCoder) { super.encode(with: aCoder) }
+    open override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? UnitVolume else {
+            return false
+        }
+        
+        if self === other {
+            return true
+        }
+        
+        return super.isEqual(object)
+    }
 }

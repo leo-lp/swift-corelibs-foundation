@@ -41,7 +41,7 @@ internal final class _NSCFSet : NSMutableSet {
         guard let value = CFSetGetValue(_cfObject, unsafeBitCast(_SwiftValue.store(object), to: UnsafeRawPointer.self)) else {
             return nil
         }
-        return _SwiftValue.fetch(unsafeBitCast(value, to: AnyObject.self) as AnyObject?)
+        return _SwiftValue.fetch(nonOptional: unsafeBitCast(value, to: AnyObject.self))
         
     }
     
@@ -58,8 +58,8 @@ internal final class _NSCFSet : NSMutableSet {
             let obj = unsafeBitCast(objects.advanced(by: idx).pointee!, to: AnyObject.self)
             objArray.append(obj)
         }
-        objects.deinitialize()
-        objects.deallocate(capacity: count)
+        objects.deinitialize(count: 1)
+        objects.deallocate()
         
         return NSGeneratorEnumerator(objArray.makeIterator())
         

@@ -33,11 +33,8 @@ open class NSOrderedSet : NSObject, NSCopying, NSMutableCopying, NSSecureCoding,
     }
     
     open override func isEqual(_ object: Any?) -> Bool {
-        if let orderedSet = object as? NSOrderedSet {
-            return isEqual(to: orderedSet)
-        } else {
-            return false
-        }
+        guard let orderedSet = object as? NSOrderedSet else { return false }
+        return isEqual(to: orderedSet)
     }
     
     open func encode(with aCoder: NSCoder) {
@@ -70,7 +67,7 @@ open class NSOrderedSet : NSObject, NSCopying, NSMutableCopying, NSSecureCoding,
     }
 
     open func object(at idx: Int) -> Any {
-        return _SwiftValue.fetch(_orderedStorage[idx])
+        return _SwiftValue.fetch(nonOptional: _orderedStorage[idx])
     }
 
     open func index(of object: Any) -> Int {
@@ -121,7 +118,7 @@ open class NSOrderedSet : NSObject, NSCopying, NSMutableCopying, NSSecureCoding,
     
     internal var allObjects: [Any] {
         if type(of: self) === NSOrderedSet.self || type(of: self) === NSMutableOrderedSet.self {
-            return _orderedStorage.map { _SwiftValue.fetch($0) }
+            return _orderedStorage.map { _SwiftValue.fetch(nonOptional: $0) }
         } else {
             return (0..<count).map { idx in
                 return self[idx]
@@ -151,7 +148,7 @@ extension NSOrderedSet {
     open func objects(at indexes: IndexSet) -> [Any] {
         var entries = [Any]()
         for idx in indexes {
-            if idx >= count && idx < 0 {
+            guard idx < count && idx >= 0 else {
                 fatalError("\(self): Index out of bounds")
             }
             entries.append(object(at: idx))
@@ -161,7 +158,7 @@ extension NSOrderedSet {
 
     public var firstObject: Any? {
         if let value = _orderedStorage.first {
-            return _SwiftValue.fetch(value)
+            return _SwiftValue.fetch(nonOptional: value)
         } else {
             return nil
         }
@@ -169,7 +166,7 @@ extension NSOrderedSet {
 
     public var lastObject: Any? {
         if let value = _orderedStorage.last {
-            return _SwiftValue.fetch(value)
+            return _SwiftValue.fetch(nonOptional: value)
         } else {
             return nil
         }
@@ -234,19 +231,19 @@ extension NSOrderedSet {
         guard type(of: self) === NSOrderedSet.self || type(of: self) === NSMutableOrderedSet.self else {
             NSRequiresConcreteImplementation()
         }
-        return NSGeneratorEnumerator(_orderedStorage.map { _SwiftValue.fetch($0) }.makeIterator())
+        return NSGeneratorEnumerator(_orderedStorage.map { _SwiftValue.fetch(nonOptional: $0) }.makeIterator())
     }
 
     public func reverseObjectEnumerator() -> NSEnumerator { 
         guard type(of: self) === NSOrderedSet.self || type(of: self) === NSMutableOrderedSet.self else {
             NSRequiresConcreteImplementation()
         }
-        return NSGeneratorEnumerator(_orderedStorage.map { _SwiftValue.fetch($0) }.reversed().makeIterator())
+        return NSGeneratorEnumerator(_orderedStorage.map { _SwiftValue.fetch(nonOptional: $0) }.reversed().makeIterator())
     }
     
     /*@NSCopying*/ 
     public var reversed: NSOrderedSet {
-        return NSOrderedSet(array: _orderedStorage.map { _SwiftValue.fetch($0) }.reversed())
+        return NSOrderedSet(array: _orderedStorage.map { _SwiftValue.fetch(nonOptional: $0) }.reversed())
     }
     
     // These two methods return a facade object for the receiving ordered set,
@@ -290,12 +287,12 @@ extension NSOrderedSet {
     }
 
     public convenience init(orderedSet set: NSOrderedSet, copyItems flag: Bool) {
-        self.init(orderedSet: set, range: NSMakeRange(0, set.count), copyItems: flag)
+        self.init(orderedSet: set, range: NSRange(location: 0, length: set.count), copyItems: flag)
     }
 
     public convenience init(orderedSet set: NSOrderedSet, range: NSRange, copyItems flag: Bool) {
         // TODO: Use the array method here when available.
-        self.init(array: set.map { $0 }, range: range, copyItems: flag)
+        self.init(array: Array(set), range: range, copyItems: flag)
     }
 
     public convenience init(array: [Any]) {
@@ -305,17 +302,17 @@ extension NSOrderedSet {
         }
         self.init(objects: buffer, count: array.count)
         buffer.deinitialize(count: array.count)
-        buffer.deallocate(capacity: array.count)
+        buffer.deallocate()
     }
 
     public convenience init(array set: [Any], copyItems flag: Bool) {
-        self.init(array: set, range: NSMakeRange(0, set.count), copyItems: flag)
+        self.init(array: set, range: NSRange(location: 0, length: set.count), copyItems: flag)
     }
 
     public convenience init(array set: [Any], range: NSRange, copyItems flag: Bool) {
         var objects = set
 
-        if let range = range.toCountableRange(), range.count != set.count || flag {
+        if let range = Range(range), range.count != set.count || flag {
             objects = [Any]()
             for index in range.indices {
                 let object = set[index]
@@ -331,7 +328,7 @@ extension NSOrderedSet {
     }
 
     public convenience init(set: Set<AnyHashable>, copyItems flag: Bool) {
-        self.init(array: set.map { $0 }, copyItems: flag)
+        self.init(array: Array(set), copyItems: flag)
     }
 }
 
@@ -341,12 +338,12 @@ extension NSOrderedSet {
 open class NSMutableOrderedSet : NSOrderedSet {
     
     open func insert(_ object: Any, at idx: Int) {
-        guard idx < count && idx >= 0 else {
+        guard idx <= count && idx >= 0 else {
             fatalError("\(self): Index out of bounds")
         }
 
         let value = _SwiftValue.store(object)
-        
+
         if contains(value) {
             return
         }
@@ -394,6 +391,16 @@ open class NSMutableOrderedSet : NSOrderedSet {
         _storage.remove(value)
         _orderedStorage.remove(at: index(of: object))
     }
+
+    open override subscript(idx: Int) -> Any {
+        get {
+            return object(at: idx)
+        }
+        set {
+            replaceObject(at: idx, with: newValue)
+        }
+    }
+    
 }
 
 extension NSMutableOrderedSet {
@@ -454,7 +461,7 @@ extension NSMutableOrderedSet {
     }
     
     open func replaceObjects(in range: NSRange, with objects: UnsafePointer<AnyObject>!, count: Int) {
-        if let range = range.toCountableRange() {
+        if let range = Range(range) {
             let buffer = UnsafeBufferPointer(start: objects, count: count)
             for (indexLocation, index) in range.indices.lazy.reversed().enumerated() {
                 let object = buffer[indexLocation]
@@ -471,7 +478,7 @@ extension NSMutableOrderedSet {
     }
     
     open func removeObjects(in range: NSRange) {
-        if let range = range.toCountableRange() {
+        if let range = Range(range) {
             for index in range.indices.lazy.reversed() {
                 removeObject(at: index)
             }
@@ -533,11 +540,11 @@ extension NSMutableOrderedSet {
     }
     
     open func sort(comparator cmptr: (Any, Any) -> ComparisonResult) {
-        sortRange(NSMakeRange(0, count), options: [], usingComparator: cmptr)
+        sortRange(NSRange(location: 0, length: count), options: [], usingComparator: cmptr)
     }
 
     open func sort(options opts: NSSortOptions = [], usingComparator cmptr: (Any, Any) -> ComparisonResult) {
-        sortRange(NSMakeRange(0, count), options: opts, usingComparator: cmptr)
+        sortRange(NSRange(location: 0, length: count), options: opts, usingComparator: cmptr)
     }
 
     open func sortRange(_ range: NSRange, options opts: NSSortOptions = [], usingComparator cmptr: (Any, Any) -> ComparisonResult) {
@@ -546,9 +553,9 @@ extension NSMutableOrderedSet {
             NSUnimplemented()
         }
 
-        let swiftRange = range.toRange()!
+        let swiftRange = Range(range)!
         _orderedStorage[swiftRange].sort { lhs, rhs in
-            return cmptr(_SwiftValue.fetch(lhs), _SwiftValue.fetch(rhs)) == .orderedAscending
+            return cmptr(_SwiftValue.fetch(nonOptional: lhs), _SwiftValue.fetch(nonOptional: rhs)) == .orderedAscending
         }
     }
 }

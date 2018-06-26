@@ -7,26 +7,20 @@
 // See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 
-#if DEPLOYMENT_RUNTIME_OBJC || os(Linux)
-    import Foundation
-    import XCTest
-#else
-    import SwiftFoundation
-    import SwiftXCTest
-#endif
-
 class TestNSLocale : XCTestCase {
     static var allTests: [(String, (TestNSLocale) -> () throws -> Void)] {
         return [
             ("test_constants", test_constants),
             ("test_Identifier", test_Identifier),
-            ("test_copy", test_copy)
+            ("test_copy", test_copy),
+            ("test_staticProperties", test_staticProperties),
+            ("test_localeProperties", test_localeProperties),
         ]
     }
 
     func test_Identifier() {
         // Current locale identifier should not be empty
-        // Or things like NSNumberFormatter spellOut style won't work
+        // Or things like NumberFormatter spellOut style won't work
         XCTAssertFalse(Locale.current.identifier.isEmpty)
 
         let enUSID = "en_US"
@@ -39,8 +33,8 @@ class TestNSLocale : XCTestCase {
     }
     
     func test_constants() {
-        XCTAssertEqual(NSCurrentLocaleDidChangeNotification, "kCFLocaleCurrentLocaleDidChangeNotification",
-                        "\(NSCurrentLocaleDidChangeNotification) is not equal to kCFLocaleCurrentLocaleDidChangeNotification")
+        XCTAssertEqual(NSLocale.currentLocaleDidChangeNotification.rawValue, "kCFLocaleCurrentLocaleDidChangeNotification",
+                        "\(NSLocale.currentLocaleDidChangeNotification.rawValue) is not equal to kCFLocaleCurrentLocaleDidChangeNotification")
         
         XCTAssertEqual(NSLocale.Key.identifier.rawValue, "kCFLocaleIdentifierKey",
                         "\(NSLocale.Key.identifier.rawValue) is not equal to kCFLocaleIdentifierKey")
@@ -107,4 +101,41 @@ class TestNSLocale : XCTestCase {
 
         XCTAssertTrue(locale == localeCopy)
     }
+
+    func test_staticProperties() {
+        let euroCurrencyCode = "EUR"
+        let spainRegionCode = "ES"
+        let galicianLanguageCode = "gl"
+        let galicianLocaleIdentifier = Locale.identifier(fromComponents: [NSLocale.Key.languageCode.rawValue: galicianLanguageCode,
+                                                                          NSLocale.Key.countryCode.rawValue: spainRegionCode])
+
+        XCTAssertTrue(galicianLocaleIdentifier == "\(galicianLanguageCode)_\(spainRegionCode)")
+        
+        let components = Locale.components(fromIdentifier: galicianLocaleIdentifier)
+
+        XCTAssertTrue(components[NSLocale.Key.languageCode.rawValue] == galicianLanguageCode)
+        XCTAssertTrue(components[NSLocale.Key.countryCode.rawValue] == spainRegionCode)
+
+        XCTAssertTrue(Locale.availableIdentifiers.contains(galicianLocaleIdentifier))
+        XCTAssertTrue(Locale.commonISOCurrencyCodes.contains(euroCurrencyCode))
+        XCTAssertTrue(Locale.isoCurrencyCodes.contains(euroCurrencyCode))
+        XCTAssertTrue(Locale.isoRegionCodes.contains(spainRegionCode))
+        XCTAssertTrue(Locale.isoLanguageCodes.contains(galicianLanguageCode))
+        
+        XCTAssertTrue(Locale.preferredLanguages.count == UserDefaults.standard.array(forKey: "AppleLanguages")?.count ?? 0)
+    }
+    
+    func test_localeProperties(){
+#if os(Android)
+        XCTFail("Locale lookup unavailable on Android")
+#else
+        let enUSID = "en_US"
+        let locale = Locale(identifier: enUSID)
+        XCTAssertEqual(String(describing: locale.languageCode!), "en")
+        XCTAssertEqual(String(describing: locale.decimalSeparator!), ".")
+        XCTAssertEqual(String(describing: locale.currencyCode!), "USD")
+        XCTAssertEqual(String(describing: locale.collatorIdentifier!), enUSID)
+#endif
+    }
+
 }

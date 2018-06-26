@@ -7,14 +7,6 @@
 // See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 
-#if DEPLOYMENT_RUNTIME_OBJC || os(Linux)
-    import Foundation
-    import XCTest
-#else
-    import SwiftFoundation
-    import SwiftXCTest
-#endif
-
 class TestNSPredicate: XCTestCase {
 
     static var allTests : [(String, (TestNSPredicate) -> () throws -> Void)] {
@@ -101,6 +93,9 @@ class TestNSPredicate: XCTestCase {
         let predicateA = NSPredicate(value: true)
         let predicateB = NSKeyedUnarchiver.unarchiveObject(with: NSKeyedArchiver.archivedData(withRootObject: predicateA)) as! NSPredicate
         XCTAssertEqual(predicateA, predicateB, "Archived then unarchived uuid must be equal.")
+        let predicateC = NSPredicate(value: false)
+        let predicateD = NSKeyedUnarchiver.unarchiveObject(with: NSKeyedArchiver.archivedData(withRootObject: predicateC)) as! NSPredicate
+        XCTAssertEqual(predicateC, predicateD, "Archived then unarchived uuid must be equal.")
     }
     
     func test_copy() {

@@ -29,6 +29,15 @@ open class NSTimeZone : NSObject, NSCopying, NSSecureCoding, NSCoding {
     }
 
     public init?(name tzName: String, data aData: Data?) {
+#if os(Android)
+        var tzName = tzName
+        if tzName == "UTC" || tzName == "GMT" {
+            tzName = "GMT+0000"
+        }
+        else if !(tzName.hasPrefix("GMT+") || tzName.hasPrefix("GMT-")) {
+            NSLog("Time zone database not available on Android")
+        }
+#endif
         super.init()
         if !_CFTimeZoneInit(_cfObject, tzName._cfObject, aData?._cfObject) {
             return nil
@@ -54,11 +63,8 @@ open class NSTimeZone : NSObject, NSCopying, NSSecureCoding, NSCoding {
     }
     
     open override func isEqual(_ object: Any?) -> Bool {
-        if let tz = object as? NSTimeZone {
-            return isEqual(to: tz._swiftObject)
-        } else {
-            return false
-        }
+        guard let other = object as? NSTimeZone else { return false }
+        return isEqual(to: other._swiftObject)
     }
     
     open override var description: String {
@@ -93,7 +99,7 @@ open class NSTimeZone : NSObject, NSCopying, NSSecureCoding, NSCoding {
     
     public convenience init?(abbreviation: String) {
         let abbr = abbreviation._cfObject
-        guard let name = unsafeBitCast(CFDictionaryGetValue(CFTimeZoneCopyAbbreviationDictionary(), unsafeBitCast(abbr, to: UnsafeRawPointer.self)), to: NSString!.self) else {
+        guard let name = unsafeBitCast(CFDictionaryGetValue(CFTimeZoneCopyAbbreviationDictionary(), unsafeBitCast(abbr, to: UnsafeRawPointer.self)), to: NSString?.self) else {
             return nil
         }
         self.init(name: name._swiftObject , data: nil)
@@ -242,7 +248,7 @@ extension NSTimeZone {
     }
 
     open func localizedName(_ style: NameStyle, locale: Locale?) -> String? {
-        #if os(OSX) || os(iOS)
+        #if os(macOS) || os(iOS)
             let cfStyle = CFTimeZoneNameStyle(rawValue: style.rawValue)!
         #else
             let cfStyle = CFTimeZoneNameStyle(style.rawValue)
@@ -284,5 +290,5 @@ extension NSTimeZone {
 }
 
 extension NSNotification.Name {
-    public static let NSSystemTimeZoneDidChange = NSNotification.Name(rawValue: "") // NSUnimplemented
+    public static let NSSystemTimeZoneDidChange = NSNotification.Name(rawValue: kCFTimeZoneSystemTimeZoneDidChangeNotification._swiftObject)
 }

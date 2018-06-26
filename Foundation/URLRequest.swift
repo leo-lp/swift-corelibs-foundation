@@ -29,9 +29,9 @@ public struct URLRequest : ReferenceConvertible, Equatable, Hashable {
     }
     
     /// Creates and initializes a URLRequest with the given URL and cache policy.
-    /// - parameter: url The URL for the request.
-    /// - parameter: cachePolicy The cache policy for the request. Defaults to `.useProtocolCachePolicy`
-    /// - parameter: timeoutInterval The timeout interval for the request. See the commentary for the `timeoutInterval` for more information on timeout intervals. Defaults to 60.0
+    /// - parameter url: The URL for the request.
+    /// - parameter cachePolicy: The cache policy for the request. Defaults to `.useProtocolCachePolicy`
+    /// - parameter timeoutInterval: The timeout interval for the request. See the commentary for the `timeoutInterval` for more information on timeout intervals. Defaults to 60.0
     public init(url: URL, cachePolicy: CachePolicy = .useProtocolCachePolicy, timeoutInterval: TimeInterval = 60.0) {
         _handle = _MutableHandle(adoptingReference: NSMutableURLRequest(url: url, cachePolicy: cachePolicy, timeoutInterval: timeoutInterval))
     }
@@ -59,6 +59,11 @@ public struct URLRequest : ReferenceConvertible, Equatable, Hashable {
             _applyMutation { $0.cachePolicy = newValue }
         }
     }
+
+    //URLRequest.timeoutInterval should be given precedence over the URLSessionConfiguration.timeoutIntervalForRequest regardless of the value set,
+    // if it has been set at least once. Even though the default value is 60 ,if the user sets URLRequest.timeoutInterval
+    // to explicitly 60 then the precedence should be given to URLRequest.timeoutInterval.
+    internal var isTimeoutIntervalSet = false
     
     /// Returns the timeout interval of the receiver.
     /// - discussion: The timeout interval specifies the limit on the idle
@@ -77,6 +82,7 @@ public struct URLRequest : ReferenceConvertible, Equatable, Hashable {
         }
         set {
             _applyMutation { $0.timeoutInterval = newValue }
+            isTimeoutIntervalSet = true
         }
     }
     
@@ -145,7 +151,7 @@ public struct URLRequest : ReferenceConvertible, Equatable, Hashable {
     /// The value which corresponds to the given header
     /// field. Note that, in keeping with the HTTP RFC, HTTP header field
     /// names are case-insensitive.
-    /// - parameter: field the header field name to use for the lookup (case-insensitive).
+    /// - parameter field: the header field name to use for the lookup (case-insensitive).
     public func value(forHTTPHeaderField field: String) -> String? {
         return _handle.map { $0.value(forHTTPHeaderField: field) }
     }
@@ -257,11 +263,11 @@ extension URLRequest : CustomStringConvertible, CustomDebugStringConvertible, Cu
         c.append((label: "httpBodyStream", value: httpBodyStream as Any))
         c.append((label: "httpShouldHandleCookies", value: httpShouldHandleCookies))
         c.append((label: "httpShouldUsePipelining", value: httpShouldUsePipelining))
-        return Mirror(self, children: c, displayStyle: Mirror.DisplayStyle.struct)
+        return Mirror(self, children: c, displayStyle: .struct)
     }
 }
 
-extension URLRequest : _ObjectTypeBridgeable {
+extension URLRequest : _ObjectiveCBridgeable {
     public static func _getObjectiveCType() -> Any.Type {
         return NSURLRequest.self
     }

@@ -7,7 +7,7 @@
 // See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 
-#if os(OSX) || os(iOS)
+#if os(macOS) || os(iOS)
     import Darwin
 #elseif os(Linux) || CYGWIN
     import Glibc
@@ -25,10 +25,24 @@ public struct CGPoint {
     }
 }
 
-extension CGPoint: Equatable { }
+extension CGPoint {
+    public static var zero: CGPoint {
+        return CGPoint(x: CGFloat(0), y: CGFloat(0))
+    }
+    
+    public init(x: Int, y: Int) {
+        self.init(x: CGFloat(x), y: CGFloat(y))
+    }
+    
+    public init(x: Double, y: Double) {
+        self.init(x: CGFloat(x), y: CGFloat(y))
+    }
+}
 
-public func ==(lhs: CGPoint, rhs: CGPoint) -> Bool {
-    return lhs.x == rhs.x && lhs.y == rhs.y
+extension CGPoint: Equatable {
+    public static func ==(lhs: CGPoint, rhs: CGPoint) -> Bool {
+        return lhs.x == rhs.x && lhs.y == rhs.y
+    }
 }
 
 extension CGPoint: NSSpecialValueCoding {
@@ -41,14 +55,14 @@ extension CGPoint: NSSpecialValueCoding {
         guard aDecoder.allowsKeyedCoding else {
             preconditionFailure("Unkeyed coding is unsupported.")
         }
-        self = aDecoder.decodePointForKey("NS.pointval")
+        self = aDecoder.decodePoint(forKey: "NS.pointval")
     }
     
     func encodeWithCoder(_ aCoder: NSCoder) {
         guard aCoder.allowsKeyedCoding else {
             preconditionFailure("Unkeyed coding is unsupported.")
         }
-        aCoder.encodePoint(self, forKey: "NS.pointval")
+        aCoder.encode(self, forKey: "NS.pointval")
     }
     
     static func objCType() -> String {
@@ -56,7 +70,7 @@ extension CGPoint: NSSpecialValueCoding {
     }
 
     func getValue(_ value: UnsafeMutableRawPointer) {
-        value.initializeMemory(as: CGPoint.self, to: self)
+        value.initializeMemory(as: CGPoint.self, repeating: self, count: 1)
     }
 
     func isEqual(_ aValue: Any) -> Bool {
@@ -71,8 +85,23 @@ extension CGPoint: NSSpecialValueCoding {
         return self.x.hashValue &+ self.y.hashValue
     }
     
-     var description: String? {
+     var description: String {
         return NSStringFromPoint(self)
+    }
+}
+
+extension CGPoint : Codable {
+    public init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        let x = try container.decode(CGFloat.self)
+        let y = try container.decode(CGFloat.self)
+        self.init(x: x, y: y)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+        try container.encode(x)
+        try container.encode(y)
     }
 }
 
@@ -88,10 +117,24 @@ public struct CGSize {
     }
 }
 
-extension CGSize: Equatable { }
+extension CGSize {
+    public static var zero: CGSize {
+        return CGSize(width: CGFloat(0), height: CGFloat(0))
+    }
+    
+    public init(width: Int, height: Int) {
+        self.init(width: CGFloat(width), height: CGFloat(height))
+    }
+    
+    public init(width: Double, height: Double) {
+        self.init(width: CGFloat(width), height: CGFloat(height))
+    }
+}
 
-public func ==(lhs: CGSize, rhs: CGSize) -> Bool {
-    return lhs.width == rhs.width && lhs.height == rhs.height
+extension CGSize: Equatable {
+    public static func ==(lhs: CGSize, rhs: CGSize) -> Bool {
+        return lhs.width == rhs.width && lhs.height == rhs.height
+    }
 }
 
 extension CGSize: NSSpecialValueCoding {
@@ -104,14 +147,14 @@ extension CGSize: NSSpecialValueCoding {
         guard aDecoder.allowsKeyedCoding else {
             preconditionFailure("Unkeyed coding is unsupported.")
         }
-        self = aDecoder.decodeSizeForKey("NS.sizeval")
+        self = aDecoder.decodeSize(forKey: "NS.sizeval")
     }
     
     func encodeWithCoder(_ aCoder: NSCoder) {
         guard aCoder.allowsKeyedCoding else {
             preconditionFailure("Unkeyed coding is unsupported.")
         }
-        aCoder.encodeSize(self, forKey: "NS.sizeval")
+        aCoder.encode(self, forKey: "NS.sizeval")
     }
     
     static func objCType() -> String {
@@ -119,7 +162,7 @@ extension CGSize: NSSpecialValueCoding {
     }
     
     func getValue(_ value: UnsafeMutableRawPointer) {
-        value.initializeMemory(as: CGSize.self, to: self)
+        value.initializeMemory(as: CGSize.self, repeating: self, count: 1)
     }
     
     func isEqual(_ aValue: Any) -> Bool {
@@ -134,8 +177,23 @@ extension CGSize: NSSpecialValueCoding {
         return self.width.hashValue &+ self.height.hashValue
     }
     
-    var description: String? {
+    var description: String {
         return NSStringFromSize(self)
+    }
+}
+
+extension CGSize : Codable {
+    public init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        let width = try container.decode(CGFloat.self)
+        let height = try container.decode(CGFloat.self)
+        self.init(width: width, height: height)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+        try container.encode(width)
+        try container.encode(height)
     }
 }
 
@@ -151,10 +209,217 @@ public struct CGRect {
     }
 }
 
-extension CGRect: Equatable { }
+extension CGRect {
+    public static var zero: CGRect {
+        return CGRect(origin: CGPoint(), size: CGSize())
+    }
+    
+    public init(x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) {
+        self.init(origin: CGPoint(x: x, y: y), size: CGSize(width: width, height: height))
+    }
+    
+    public init(x: Double, y: Double, width: Double, height: Double) {
+        self.init(origin: CGPoint(x: x, y: y), size: CGSize(width: width, height: height))
+    }
+    
+    public init(x: Int, y: Int, width: Int, height: Int) {
+        self.init(origin: CGPoint(x: x, y: y), size: CGSize(width: width, height: height))
+    }
+}
 
-public func ==(lhs: CGRect, rhs: CGRect) -> Bool {
-    return lhs.origin == rhs.origin && lhs.size == rhs.size
+extension CGRect {
+    public static let null = CGRect(x: CGFloat.infinity,
+                                    y: CGFloat.infinity,
+                                    width: CGFloat(0),
+                                    height: CGFloat(0))
+    
+    public static let infinite = CGRect(x: -CGFloat.greatestFiniteMagnitude / 2,
+                                        y: -CGFloat.greatestFiniteMagnitude / 2,
+                                        width: CGFloat.greatestFiniteMagnitude,
+                                        height: CGFloat.greatestFiniteMagnitude)
+
+    public var width: CGFloat { return abs(self.size.width) }
+    public var height: CGFloat { return abs(self.size.height) }
+
+    public var minX: CGFloat { return self.origin.x + min(self.size.width, 0) }
+    public var midX: CGFloat { return (self.minX + self.maxX) * 0.5 }
+    public var maxX: CGFloat { return self.origin.x + max(self.size.width, 0) }
+
+    public var minY: CGFloat { return self.origin.y + min(self.size.height, 0) }
+    public var midY: CGFloat { return (self.minY + self.maxY) * 0.5 }
+    public var maxY: CGFloat { return self.origin.y + max(self.size.height, 0) }
+
+    public var isEmpty: Bool { return self.isNull || self.size.width == 0 || self.size.height == 0 }
+    public var isInfinite: Bool { return self == .infinite }
+    public var isNull: Bool { return self.origin.x == .infinity || self.origin.y == .infinity }
+
+    public func contains(_ point: CGPoint) -> Bool {
+        if self.isNull || self.isEmpty { return false }
+
+        return (self.minX..<self.maxX).contains(point.x) && (self.minY..<self.maxY).contains(point.y)
+    }
+
+    public func contains(_ rect2: CGRect) -> Bool {
+        return self.union(rect2) == self
+    }
+
+    public var standardized: CGRect {
+        if self.isNull { return .null }
+
+        return CGRect(x: self.minX,
+                      y: self.minY,
+                      width: self.width,
+                      height: self.height)
+    }
+
+    public var integral: CGRect {
+        if self.isNull { return self }
+
+        let standardized = self.standardized
+        let x = standardized.origin.x.rounded(.down)
+        let y = standardized.origin.y.rounded(.down)
+        let width = (standardized.origin.x + standardized.size.width).rounded(.up) - x
+        let height = (standardized.origin.y + standardized.size.height).rounded(.up) - y
+        return CGRect(x: x, y: y, width: width, height: height)
+    }
+
+    public func insetBy(dx: CGFloat, dy: CGFloat) -> CGRect {
+        if self.isNull { return self }
+
+        var rect = self.standardized
+
+        rect.origin.x += dx
+        rect.origin.y += dy
+        rect.size.width -= 2 * dx
+        rect.size.height -= 2 * dy
+
+        if rect.size.width < 0 || rect.size.height < 0 {
+            return .null
+        }
+
+        return rect
+    }
+
+    public func union(_ r2: CGRect) -> CGRect {
+        if self.isNull {
+            return r2
+        }
+        else if r2.isNull {
+            return self
+        }
+
+        let rect1 = self.standardized
+        let rect2 = r2.standardized
+
+        let minX = min(rect1.minX, rect2.minX)
+        let minY = min(rect1.minY, rect2.minY)
+        let maxX = max(rect1.maxX, rect2.maxX)
+        let maxY = max(rect1.maxY, rect2.maxY)
+
+        return CGRect(x: minX,
+                      y: minY,
+                      width: maxX - minX,
+                      height: maxY - minY)
+    }
+
+    public func intersection(_ r2: CGRect) -> CGRect {
+        if self.isNull || r2.isNull { return .null }
+
+        let rect1 = self.standardized
+        let rect2 = r2.standardized
+
+        let rect1SpanH = rect1.minX...rect1.maxX
+        let rect1SpanV = rect1.minY...rect1.maxY
+
+        let rect2SpanH = rect2.minX...rect2.maxX
+        let rect2SpanV = rect2.minY...rect2.maxY
+
+        if !rect1SpanH.overlaps(rect2SpanH) || !rect1SpanV.overlaps(rect2SpanV) {
+            return .null
+        }
+
+        let overlapH = rect1SpanH.clamped(to: rect2SpanH)
+        let overlapV = rect1SpanV.clamped(to: rect2SpanV)
+
+        return CGRect(x: overlapH.lowerBound,
+                      y: overlapV.lowerBound,
+                      width: overlapH.upperBound - overlapH.lowerBound,
+                      height: overlapV.upperBound - overlapV.lowerBound)
+    }
+
+    public func intersects(_ r2: CGRect) -> Bool {
+        return !self.intersection(r2).isNull
+    }
+
+    public func offsetBy(dx: CGFloat, dy: CGFloat) -> CGRect {
+        if self.isNull { return self }
+
+        var rect = self.standardized
+        rect.origin.x += dx
+        rect.origin.y += dy
+        return rect
+    }
+
+    public func divided(atDistance: CGFloat, from fromEdge: CGRectEdge) -> (slice: CGRect, remainder: CGRect) {
+        if self.isNull { return (.null, .null) }
+
+        let splitLocation: CGFloat
+        switch fromEdge {
+        case .minXEdge: splitLocation = min(max(atDistance, 0), self.width)
+        case .maxXEdge: splitLocation = min(max(self.width - atDistance, 0), self.width)
+        case .minYEdge: splitLocation = min(max(atDistance, 0), self.height)
+        case .maxYEdge: splitLocation = min(max(self.height - atDistance, 0), self.height)
+        }
+
+        let rect = self.standardized
+        var rect1 = rect
+        var rect2 = rect
+
+        switch fromEdge {
+        case .minXEdge: fallthrough
+        case .maxXEdge:
+            rect1.size.width = splitLocation
+            rect2.origin.x = rect1.maxX
+            rect2.size.width = rect.width - splitLocation
+        case .minYEdge: fallthrough
+        case .maxYEdge:
+            rect1.size.height = splitLocation
+            rect2.origin.y = rect1.maxY
+            rect2.size.height = rect.height - splitLocation
+        }
+
+        switch fromEdge {
+        case .minXEdge: fallthrough
+        case .minYEdge: return (rect1, rect2)
+        case .maxXEdge: fallthrough
+        case .maxYEdge: return (rect2, rect1)
+        }
+    }
+}
+
+extension CGRect: Equatable {
+    public static func ==(lhs: CGRect, rhs: CGRect) -> Bool {
+        if lhs.isNull && rhs.isNull { return true }
+
+        let r1 = lhs.standardized
+        let r2 = rhs.standardized
+        return r1.origin == r2.origin && r1.size == r2.size
+    }
+}
+
+extension CGRect : Codable {
+    public init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        let origin = try container.decode(CGPoint.self)
+        let size = try container.decode(CGSize.self)
+        self.init(origin: origin, size: size)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+        try container.encode(origin)
+        try container.encode(size)
+    }
 }
 
 public typealias NSPoint = CGPoint
@@ -186,14 +451,14 @@ extension CGRect: NSSpecialValueCoding {
         guard aDecoder.allowsKeyedCoding else {
             preconditionFailure("Unkeyed coding is unsupported.")
         }
-        self = aDecoder.decodeRectForKey("NS.rectval")
+        self = aDecoder.decodeRect(forKey: "NS.rectval")
     }
     
     func encodeWithCoder(_ aCoder: NSCoder) {
         guard aCoder.allowsKeyedCoding else {
             preconditionFailure("Unkeyed coding is unsupported.")
         }
-        aCoder.encodeRect(self, forKey: "NS.rectval")
+        aCoder.encode(self, forKey: "NS.rectval")
     }
     
     static func objCType() -> String {
@@ -201,7 +466,7 @@ extension CGRect: NSSpecialValueCoding {
     }
     
     func getValue(_ value: UnsafeMutableRawPointer) {
-        value.initializeMemory(as: CGRect.self, to: self)
+        value.initializeMemory(as: CGRect.self, repeating: self, count: 1)
     }
     
     func isEqual(_ aValue: Any) -> Bool {
@@ -216,7 +481,7 @@ extension CGRect: NSSpecialValueCoding {
         return self.origin.hash &+ self.size.hash
     }
     
-    var description: String? {
+    var description: String {
         return NSStringFromRect(self)
     }
 }
@@ -300,7 +565,7 @@ extension NSEdgeInsets: NSSpecialValueCoding {
     }
     
     func getValue(_ value: UnsafeMutableRawPointer) {
-        value.initializeMemory(as: NSEdgeInsets.self, to: self)
+        value.initializeMemory(as: NSEdgeInsets.self, repeating: self, count: 1)
     }
     
     func isEqual(_ aValue: Any) -> Bool {
@@ -316,43 +581,43 @@ extension NSEdgeInsets: NSSpecialValueCoding {
         return self.top.hashValue &+ self.left.hashValue &+ self.bottom.hashValue &+ self.right.hashValue
     }
     
-    var description: String? {
-        return nil
+    var description: String {
+        return ""
     }
 }
 
-public struct NSAlignmentOptions : OptionSet {
+public struct AlignmentOptions : OptionSet {
     public var rawValue : UInt64
     public init(rawValue: UInt64) { self.rawValue = rawValue }
     
-    public static let AlignMinXInward = NSAlignmentOptions(rawValue: 1 << 0)
-    public static let AlignMinYInward = NSAlignmentOptions(rawValue: 1 << 1)
-    public static let AlignMaxXInward = NSAlignmentOptions(rawValue: 1 << 2)
-    public static let AlignMaxYInward = NSAlignmentOptions(rawValue: 1 << 3)
-    public static let AlignWidthInward = NSAlignmentOptions(rawValue: 1 << 4)
-    public static let AlignHeightInward = NSAlignmentOptions(rawValue: 1 << 5)
+    public static let alignMinXInward = AlignmentOptions(rawValue: 1 << 0)
+    public static let alignMinYInward = AlignmentOptions(rawValue: 1 << 1)
+    public static let alignMaxXInward = AlignmentOptions(rawValue: 1 << 2)
+    public static let alignMaxYInward = AlignmentOptions(rawValue: 1 << 3)
+    public static let alignWidthInward = AlignmentOptions(rawValue: 1 << 4)
+    public static let alignHeightInward = AlignmentOptions(rawValue: 1 << 5)
     
-    public static let AlignMinXOutward = NSAlignmentOptions(rawValue: 1 << 8)
-    public static let AlignMinYOutward = NSAlignmentOptions(rawValue: 1 << 9)
-    public static let AlignMaxXOutward = NSAlignmentOptions(rawValue: 1 << 10)
-    public static let AlignMaxYOutward = NSAlignmentOptions(rawValue: 1 << 11)
-    public static let AlignWidthOutward = NSAlignmentOptions(rawValue: 1 << 12)
-    public static let AlignHeightOutward = NSAlignmentOptions(rawValue: 1 << 13)
+    public static let alignMinXOutward = AlignmentOptions(rawValue: 1 << 8)
+    public static let alignMinYOutward = AlignmentOptions(rawValue: 1 << 9)
+    public static let alignMaxXOutward = AlignmentOptions(rawValue: 1 << 10)
+    public static let alignMaxYOutward = AlignmentOptions(rawValue: 1 << 11)
+    public static let alignWidthOutward = AlignmentOptions(rawValue: 1 << 12)
+    public static let alignHeightOutward = AlignmentOptions(rawValue: 1 << 13)
     
-    public static let AlignMinXNearest = NSAlignmentOptions(rawValue: 1 << 16)
-    public static let AlignMinYNearest = NSAlignmentOptions(rawValue: 1 << 17)
-    public static let AlignMaxXNearest = NSAlignmentOptions(rawValue: 1 << 18)
-    public static let AlignMaxYNearest = NSAlignmentOptions(rawValue: 1 << 19)
-    public static let AlignWidthNearest = NSAlignmentOptions(rawValue: 1 << 20)
-    public static let AlignHeightNearest = NSAlignmentOptions(rawValue: 1 << 21)
+    public static let alignMinXNearest = AlignmentOptions(rawValue: 1 << 16)
+    public static let alignMinYNearest = AlignmentOptions(rawValue: 1 << 17)
+    public static let alignMaxXNearest = AlignmentOptions(rawValue: 1 << 18)
+    public static let alignMaxYNearest = AlignmentOptions(rawValue: 1 << 19)
+    public static let alignWidthNearest = AlignmentOptions(rawValue: 1 << 20)
+    public static let alignHeightNearest = AlignmentOptions(rawValue: 1 << 21)
 
     // pass this if the rect is in a flipped coordinate system. This allows 0.5 to be treated in a visually consistent way.
-    public static let AlignRectFlipped = NSAlignmentOptions(rawValue: 1 << 63)
+    public static let alignRectFlipped = AlignmentOptions(rawValue: 1 << 63)
     
     // convenience combinations
-    public static let AlignAllEdgesInward = [NSAlignmentOptions.AlignMinXInward, NSAlignmentOptions.AlignMaxXInward, NSAlignmentOptions.AlignMinYInward, NSAlignmentOptions.AlignMaxYInward]
-    public static let AlignAllEdgesOutward = [NSAlignmentOptions.AlignMinXOutward, NSAlignmentOptions.AlignMaxXOutward, NSAlignmentOptions.AlignMinYOutward, NSAlignmentOptions.AlignMaxYOutward]
-    public static let AlignAllEdgesNearest = [NSAlignmentOptions.AlignMinXNearest, NSAlignmentOptions.AlignMaxXNearest, NSAlignmentOptions.AlignMinYNearest, NSAlignmentOptions.AlignMaxYNearest]
+    public static let alignAllEdgesInward: AlignmentOptions = [.alignMinXInward, .alignMaxXInward, .alignMinYInward, .alignMaxYInward]
+    public static let alignAllEdgesOutward: AlignmentOptions = [.alignMinXOutward, .alignMaxXOutward, .alignMinYOutward, .alignMaxYOutward]
+    public static let alignAllEdgesNearest: AlignmentOptions = [.alignMinXNearest, .alignMaxXNearest, .alignMinYNearest, .alignMaxYNearest]
 }
 
 public let NSZeroPoint: NSPoint = NSPoint()
@@ -429,12 +694,12 @@ public func NSIntegralRect(_ aRect: NSRect) -> NSRect {
         return NSZeroRect
     }
     
-    return NSIntegralRectWithOptions(aRect, [.AlignMinXOutward, .AlignMaxXOutward, .AlignMinYOutward, .AlignMaxYOutward])
+    return NSIntegralRectWithOptions(aRect, [.alignMinXOutward, .alignMaxXOutward, .alignMinYOutward, .alignMaxYOutward])
 }
-public func NSIntegralRectWithOptions(_ aRect: NSRect, _ opts: NSAlignmentOptions) -> NSRect {
+public func NSIntegralRectWithOptions(_ aRect: NSRect, _ opts: AlignmentOptions) -> NSRect {
     let listOfOptionsIsInconsistentErrorMessage = "List of options is inconsistent"
     
-    if opts.contains(.AlignRectFlipped) {
+    if opts.contains(.alignRectFlipped) {
         NSUnimplemented()
     }
 
@@ -453,81 +718,81 @@ public func NSIntegralRectWithOptions(_ aRect: NSRect, _ opts: NSAlignmentOption
     }
     
 
-    if opts.contains(.AlignWidthInward) && width != 0 {
+    if opts.contains(.alignWidthInward) && width != 0 {
         guard width.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         width = floor(aRect.size.width.native)
     }
-    if opts.contains(.AlignHeightInward) && height != 0 {
+    if opts.contains(.alignHeightInward) && height != 0 {
         guard height.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         height = floor(aRect.size.height.native)
     }
-    if opts.contains(.AlignWidthOutward) && width != 0 {
+    if opts.contains(.alignWidthOutward) && width != 0 {
         guard width.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         width = ceil(aRect.size.width.native)
     }
-    if opts.contains(.AlignHeightOutward) && height != 0 {
+    if opts.contains(.alignHeightOutward) && height != 0 {
         guard height.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         height = ceil(aRect.size.height.native)
     }
-    if opts.contains(.AlignWidthNearest) && width != 0 {
+    if opts.contains(.alignWidthNearest) && width != 0 {
         guard width.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         width = round(aRect.size.width.native)
     }
-    if opts.contains(.AlignHeightNearest) && height != 0 {
+    if opts.contains(.alignHeightNearest) && height != 0 {
         guard height.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         height = round(aRect.size.height.native)
     }
 
     
-    if opts.contains(.AlignMinXInward) {
+    if opts.contains(.alignMinXInward) {
         guard minX.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         minX = ceil(aRect.origin.x.native)
     }
-    if opts.contains(.AlignMinYInward) {
+    if opts.contains(.alignMinYInward) {
         guard minY.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         minY = ceil(aRect.origin.y.native)
     }
-    if opts.contains(.AlignMaxXInward) {
+    if opts.contains(.alignMaxXInward) {
         guard maxX.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         maxX = floor(aRect.origin.x.native + aRect.size.width.native)
     }
-    if opts.contains(.AlignMaxYInward) {
+    if opts.contains(.alignMaxYInward) {
         guard maxY.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         maxY = floor(aRect.origin.y.native + aRect.size.height.native)
     }
 
     
-    if opts.contains(.AlignMinXOutward) {
+    if opts.contains(.alignMinXOutward) {
         guard minX.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         minX = floor(aRect.origin.x.native)
     }
-    if opts.contains(.AlignMinYOutward) {
+    if opts.contains(.alignMinYOutward) {
         guard minY.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         minY = floor(aRect.origin.y.native)
     }
-    if opts.contains(.AlignMaxXOutward) {
+    if opts.contains(.alignMaxXOutward) {
         guard maxX.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         maxX = ceil(aRect.origin.x.native + aRect.size.width.native)
     }
-    if opts.contains(.AlignMaxYOutward) {
+    if opts.contains(.alignMaxYOutward) {
         guard maxY.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         maxY = ceil(aRect.origin.y.native + aRect.size.height.native)
     }
     
 
-    if opts.contains(.AlignMinXNearest) {
+    if opts.contains(.alignMinXNearest) {
         guard minX.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         minX = round(aRect.origin.x.native)
     }
-    if opts.contains(.AlignMinYNearest) {
+    if opts.contains(.alignMinYNearest) {
         guard minY.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         minY = round(aRect.origin.y.native)
     }
-    if opts.contains(.AlignMaxXNearest) {
+    if opts.contains(.alignMaxXNearest) {
         guard maxX.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         maxX = round(aRect.origin.x.native + aRect.size.width.native)
     }
-    if opts.contains(.AlignMaxYNearest) {
+    if opts.contains(.alignMaxYNearest) {
         guard maxY.isNaN else { fatalError(listOfOptionsIsInconsistentErrorMessage) }
         maxY = round(aRect.origin.y.native + aRect.size.height.native)
     }
@@ -708,7 +973,7 @@ private func _scanDoublesFromString(_ aString: String, number: Int) -> [Double] 
     var index = 0
 
     let _ = scanner.scanUpToCharactersFromSet(digitSet)
-    while !scanner.atEnd && index < number {
+    while !scanner.isAtEnd && index < number {
         if let num = scanner.scanDouble() {
             result[index] = num
         }
@@ -807,7 +1072,7 @@ extension NSValue {
 
 extension NSCoder {
     
-    public func encodePoint(_ point: NSPoint) {
+    public func encode(_ point: NSPoint) {
         self._encodeCGFloat(point.x)
         self._encodeCGFloat(point.y)
     }
@@ -816,7 +1081,7 @@ extension NSCoder {
         return NSPoint(x: _decodeCGFloat(), y: _decodeCGFloat())
     }
     
-    public func encodeSize(_ size: NSSize) {
+    public func encode(_ size: NSSize) {
         self._encodeCGFloat(size.width)
         self._encodeCGFloat(size.height)
     }
@@ -825,9 +1090,9 @@ extension NSCoder {
         return NSSize(width: _decodeCGFloat(), height: _decodeCGFloat())
     }
     
-    public func encodeRect(_ rect: NSRect) {
-        self.encodePoint(rect.origin)
-        self.encodeSize(rect.size)
+    public func encode(_ rect: NSRect) {
+        self.encode(rect.origin)
+        self.encode(rect.size)
     }
     
     public func decodeRect() -> NSRect {
@@ -837,19 +1102,19 @@ extension NSCoder {
 
 extension NSCoder {
     
-    public func encodePoint(_ point: NSPoint, forKey key: String) {
+    public func encode(_ point: NSPoint, forKey key: String) {
         self.encode(NSStringFromPoint(point)._bridgeToObjectiveC(), forKey: key)
     }
     
-    public func encodeSize(_ size: NSSize, forKey key: String) {
+    public func encode(_ size: NSSize, forKey key: String) {
         self.encode(NSStringFromSize(size)._bridgeToObjectiveC(), forKey: key)
     }
     
-    public func encodeRect(_ rect: NSRect, forKey key: String) {
+    public func encode(_ rect: NSRect, forKey key: String) {
         self.encode(NSStringFromRect(rect)._bridgeToObjectiveC(), forKey: key)
     }
     
-    public func decodePointForKey(_ key: String) -> NSPoint {
+    public func decodePoint(forKey key: String) -> NSPoint {
         if let string = self.decodeObject(of: NSString.self, forKey: key) {
             return NSPointFromString(String._unconditionallyBridgeFromObjectiveC(string))
         } else {
@@ -857,7 +1122,7 @@ extension NSCoder {
         }
     }
     
-    public func decodeSizeForKey(_ key: String) -> NSSize {
+    public func decodeSize(forKey key: String) -> NSSize {
         if let string = self.decodeObject(of: NSString.self, forKey: key) {
             return NSSizeFromString(String._unconditionallyBridgeFromObjectiveC(string))
         } else {
@@ -865,7 +1130,7 @@ extension NSCoder {
         }
     }
     
-    public func decodeRectForKey(_ key: String) -> NSRect {
+    public func decodeRect(forKey key: String) -> NSRect {
         if let string = self.decodeObject(of: NSString.self, forKey: key) {
             return NSRectFromString(String._unconditionallyBridgeFromObjectiveC(string))
         } else {

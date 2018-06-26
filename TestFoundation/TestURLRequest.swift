@@ -7,15 +7,6 @@
 // See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 
-
-#if DEPLOYMENT_RUNTIME_OBJC || os(Linux)
-    import Foundation
-    import XCTest
-#else
-    import SwiftFoundation
-    import SwiftXCTest
-#endif
-
 class TestURLRequest : XCTestCase {
     
     static var allTests: [(String, (TestURLRequest) -> () throws -> Void)] {
@@ -27,6 +18,8 @@ class TestURLRequest : XCTestCase {
             ("test_mutableCopy_1", test_mutableCopy_1),
             ("test_mutableCopy_2", test_mutableCopy_2),
             ("test_mutableCopy_3", test_mutableCopy_3),
+            ("test_methodNormalization", test_methodNormalization),
+            ("test_description", test_description),
         ]
     }
     
@@ -34,8 +27,7 @@ class TestURLRequest : XCTestCase {
     
     func test_construction() {
         let request = URLRequest(url: url)
-        // Match OS X Foundation responses
-        XCTAssertNotNil(request)
+        // Match macOS Foundation responses
         XCTAssertEqual(request.url, url)
         XCTAssertEqual(request.httpMethod, "GET")
         XCTAssertNil(request.allHTTPHeaderFields)
@@ -47,7 +39,6 @@ class TestURLRequest : XCTestCase {
         var request = URLRequest(url: url)
         
         //Confirm initial state matches NSURLRequest responses
-        XCTAssertNotNil(request)
         XCTAssertEqual(request.url, url)
         XCTAssertEqual(request.httpMethod, "GET")
         XCTAssertNil(request.allHTTPHeaderFields)
@@ -69,16 +60,17 @@ class TestURLRequest : XCTestCase {
         
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         XCTAssertNotNil(request.allHTTPHeaderFields)
+        XCTAssertNil(request.allHTTPHeaderFields?["accept"])
         XCTAssertEqual(request.allHTTPHeaderFields?["Accept"], "application/json")
         
-        // Setting "accept" should remove "Accept"
+        // Setting "accept" should update "Accept"
         request.setValue("application/xml", forHTTPHeaderField: "accept")
-        XCTAssertNil(request.allHTTPHeaderFields?["Accept"])
-        XCTAssertEqual(request.allHTTPHeaderFields?["accept"], "application/xml")
+        XCTAssertNil(request.allHTTPHeaderFields?["accept"])
+        XCTAssertEqual(request.allHTTPHeaderFields?["Accept"], "application/xml")
         
-        // Adding to "Accept" should add to "accept"
+        // Adding to "Accept" should add to "Accept"
         request.addValue("text/html", forHTTPHeaderField: "Accept")
-        XCTAssertEqual(request.allHTTPHeaderFields?["accept"], "application/xml,text/html")
+        XCTAssertEqual(request.allHTTPHeaderFields?["Accept"], "application/xml,text/html")
     }
     
     func test_copy() {
@@ -86,10 +78,13 @@ class TestURLRequest : XCTestCase {
         
         let urlA = URL(string: "http://swift.org")!
         let urlB = URL(string: "http://github.com")!
+        let postBody = "here is body".data(using: .utf8)
+
         mutableRequest.mainDocumentURL = urlA
         mutableRequest.url = urlB
         mutableRequest.httpMethod = "POST"
         mutableRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        mutableRequest.httpBody = postBody
         
         let requestCopy1 = mutableRequest
         
@@ -103,6 +98,8 @@ class TestURLRequest : XCTestCase {
         XCTAssertEqual(requestCopy1.url, urlB)
         XCTAssertEqual(mutableRequest.allHTTPHeaderFields?["Accept"], "application/json")
         XCTAssertEqual(requestCopy1.allHTTPHeaderFields?["Accept"], "application/json")
+        XCTAssertEqual(mutableRequest.httpBody, postBody)
+        XCTAssertEqual(requestCopy1.httpBody, postBody)
         
         // Change the original, and check that the copy has unchanged
         // values:
@@ -116,6 +113,7 @@ class TestURLRequest : XCTestCase {
         XCTAssertEqual(requestCopy1.httpMethod, "POST")
         XCTAssertEqual(requestCopy1.url, urlB)
         XCTAssertEqual(requestCopy1.allHTTPHeaderFields?["Accept"], "application/json")
+        XCTAssertEqual(requestCopy1.httpBody, postBody)
         
         // Check that we can copy the copy:
         let requestCopy2 = requestCopy1
@@ -124,6 +122,7 @@ class TestURLRequest : XCTestCase {
         XCTAssertEqual(requestCopy2.httpMethod, "POST")
         XCTAssertEqual(requestCopy2.url, urlB)
         XCTAssertEqual(requestCopy2.allHTTPHeaderFields?["Accept"], "application/json")
+        XCTAssertEqual(requestCopy2.httpBody, postBody)
     }
     
     func test_mutableCopy_1() {
@@ -194,5 +193,56 @@ class TestURLRequest : XCTestCase {
         XCTAssertEqual(originalRequest.url, urlA)
         XCTAssertNil(originalRequest.allHTTPHeaderFields)
     }
-}
 
+    func test_methodNormalization() {
+        let expectedNormalizations = [
+            "GET": "GET",
+            "get": "GET",
+            "gEt": "GET",
+            "HEAD": "HEAD",
+            "hEAD": "HEAD",
+            "head": "HEAD",
+            "HEAd": "HEAD",
+            "POST": "POST",
+            "post": "POST",
+            "pOST": "POST",
+            "POSt": "POST",
+            "PUT": "PUT",
+            "put": "PUT",
+            "PUt": "PUT",
+            "DELETE": "DELETE",
+            "delete": "DELETE",
+            "DeleTE": "DELETE",
+            "dELETe": "DELETE",
+            "CONNECT": "CONNECT",
+            "connect": "CONNECT",
+            "Connect": "CONNECT",
+            "cOnNeCt": "CONNECT",
+            "OPTIONS": "OPTIONS",
+            "options": "options",
+            "TRACE": "TRACE",
+            "trace": "trace",
+            "PATCH": "PATCH",
+            "patch": "patch",
+            "foo": "foo",
+            "BAR": "BAR",
+            ]
+
+        var request = URLRequest(url: url)
+
+        for n in expectedNormalizations {
+            request.httpMethod = n.key
+            XCTAssertEqual(request.httpMethod, n.value)
+        }
+    }
+
+    func test_description() {
+        let url = URL(string: "http://swift.org")!
+
+        var request = URLRequest(url: url)
+        XCTAssertEqual(request.description, "http://swift.org")
+
+        request.url = nil
+        XCTAssertEqual(request.description, "url: nil")
+    }
+}

@@ -10,7 +10,7 @@
 
 import CoreFoundation
 
-#if os(OSX) || os(iOS)
+#if os(macOS) || os(iOS)
 internal let kCFCompareLessThan = CFComparisonResult.compareLessThan
 internal let kCFCompareEqualTo = CFComparisonResult.compareEqualTo
 internal let kCFCompareGreaterThan = CFComparisonResult.compareGreaterThan
@@ -153,7 +153,7 @@ public enum ComparisonResult : Int {
 }
 
 /* Note: QualityOfService enum is available on all platforms, but it may not be implemented on all platforms. */
-public enum NSQualityOfService : Int {
+public enum QualityOfService : Int {
     
     /* UserInteractive QoS is used for work directly involved in providing an interactive UI such as processing events or drawing to the screen. */
     case userInteractive
@@ -202,6 +202,13 @@ internal func NSUnimplemented(_ fn: String = #function, file: StaticString = #fi
     fatalError("\(fn) is not yet implemented", file: file, line: line)
 }
 
+internal func NSUnsupported(_ fn: String = #function, file: StaticString = #file, line: UInt = #line) -> Never {
+    #if os(Android)
+    NSLog("\(fn) is not supported on this platform. \(file):\(line)")
+    #endif
+    fatalError("\(fn) is not supported on this platform", file: file, line: line)
+}
+
 internal func NSInvalidArgument(_ message: String, method: String = #function, file: StaticString = #file, line: UInt = #line) -> Never {
     fatalError("\(method): \(message)", file: file, line: line)
 }
@@ -221,7 +228,7 @@ internal struct _CFInfo {
     }
 }
 
-#if os(OSX) || os(iOS)
+#if os(macOS) || os(iOS)
 private let _SwiftFoundationModuleName = "SwiftFoundation"
 #else
 private let _SwiftFoundationModuleName = "Foundation"
@@ -269,10 +276,8 @@ public func NSClassFromString(_ aClassName: String) -> AnyClass? {
             return nil
         }
         aClassNameWithPrefix = _SwiftFoundationModuleName + "." + aClassName
-        break
     case 2:
         aClassNameWithPrefix = aClassName
-        break
     default:
         NSLog("*** NSClassFromString(\(aClassName)): nested class names not yet supported")
         return nil

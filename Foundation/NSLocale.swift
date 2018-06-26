@@ -16,7 +16,7 @@ open class NSLocale: NSObject, NSCopying, NSSecureCoding {
     private var _identifier: UnsafeMutableRawPointer? = nil
     private var _cache: UnsafeMutableRawPointer? = nil
     private var _prefs: UnsafeMutableRawPointer? = nil
-#if os(OSX) || os(iOS)
+#if os(macOS) || os(iOS)
     private var _lock = pthread_mutex_t()
 #elseif os(Linux) || os(Android) || CYGWIN
     private var _lock = Int32(0)
@@ -27,8 +27,8 @@ open class NSLocale: NSObject, NSCopying, NSSecureCoding {
         return unsafeBitCast(self, to: CFType.self)
     }
     
-    open func object(forKey key: NSLocale.Key) -> AnyObject? {
-        return CFLocaleGetValue(_cfObject, key.rawValue._cfObject)
+    open func object(forKey key: NSLocale.Key) -> Any? {
+        return _SwiftValue.fetch(CFLocaleGetValue(_cfObject, key.rawValue._cfObject))
     }
     
     open func displayName(forKey key: Key, value: String) -> String? {
@@ -48,6 +48,10 @@ open class NSLocale: NSObject, NSCopying, NSSecureCoding {
             return nil
         }
         self.init(localeIdentifier: String._unconditionallyBridgeFromObjectiveC(identifier))
+    }
+    
+    deinit {
+        _CFDeinit(self)
     }
     
     open override func copy() -> Any {
@@ -84,73 +88,42 @@ extension NSLocale {
         return CFLocaleCopyCurrent()._swiftObject
     }
     
-    open class func systemLocale() -> Locale {
+    open class var system: Locale {
         return CFLocaleGetSystem()._swiftObject
     }
 }
 
 extension NSLocale {
     public var localeIdentifier: String {
-        return (object(forKey: .identifier) as! NSString)._swiftObject
+        return object(forKey: .identifier) as! String
     }
     
     open class var availableLocaleIdentifiers: [String] {
-        var identifiers = Array<String>()
-        for obj in CFLocaleCopyAvailableLocaleIdentifiers()._nsObject {
-            identifiers.append((obj as! NSString)._swiftObject)
-        }
-        return identifiers
+        return _SwiftValue.fetch(CFLocaleCopyAvailableLocaleIdentifiers()) as? [String] ?? []
     }
     
     open class var isoLanguageCodes: [String] {
-        var identifiers = Array<String>()
-        for obj in CFLocaleCopyISOLanguageCodes()._nsObject {
-            identifiers.append((obj as! NSString)._swiftObject)
-        }
-        return identifiers
+        return _SwiftValue.fetch(CFLocaleCopyISOLanguageCodes()) as? [String] ?? []
     }
     
     open class var isoCountryCodes: [String] {
-        var identifiers = Array<String>()
-        for obj in CFLocaleCopyISOCountryCodes()._nsObject {
-            identifiers.append((obj as! NSString)._swiftObject)
-        }
-        return identifiers
+        return _SwiftValue.fetch(CFLocaleCopyISOCountryCodes()) as? [String] ?? []
     }
     
     open class var isoCurrencyCodes: [String] {
-        var identifiers = Array<String>()
-        for obj in CFLocaleCopyISOCurrencyCodes()._nsObject {
-            identifiers.append((obj as! NSString)._swiftObject)
-        }
-        return identifiers
+        return _SwiftValue.fetch(CFLocaleCopyISOCurrencyCodes()) as? [String] ?? []
     }
     
     open class var commonISOCurrencyCodes: [String] {
-        var identifiers = Array<String>()
-        for obj in CFLocaleCopyCommonISOCurrencyCodes()._nsObject {
-            identifiers.append((obj as! NSString)._swiftObject)
-        }
-        return identifiers
+        return _SwiftValue.fetch(CFLocaleCopyCommonISOCurrencyCodes()) as? [String] ?? []
     }
     
     open class var preferredLanguages: [String] {
-        var identifiers = Array<String>()
-        for obj in CFLocaleCopyPreferredLanguages()._nsObject {
-            identifiers.append((obj as! NSString)._swiftObject)
-        }
-        return identifiers
+        return _SwiftValue.fetch(CFLocaleCopyPreferredLanguages()) as? [String] ?? []
     }
     
     open class func components(fromLocaleIdentifier string: String) -> [String : String] {
-        var comps = Dictionary<String, String>()
-        let values = CFLocaleCreateComponentsFromLocaleIdentifier(kCFAllocatorSystemDefault, string._cfObject)._nsObject
-        values.enumerateKeysAndObjects(options: []) { (k, v, stop) in
-            let key = (k as! NSString)._swiftObject
-            let value = (v as! NSString)._swiftObject
-            comps[key] = value
-        }
-        return comps
+        return _SwiftValue.fetch(CFLocaleCreateComponentsFromLocaleIdentifier(kCFAllocatorSystemDefault, string._cfObject)) as? [String : String] ?? [:] 
     }
     
     open class func localeIdentifier(fromComponents dict: [String : String]) -> String {
@@ -175,7 +148,7 @@ extension NSLocale {
     
     open class func characterDirection(forLanguage isoLangCode: String) -> NSLocale.LanguageDirection {
         let dir = CFLocaleGetLanguageCharacterDirection(isoLangCode._cfObject)
-#if os(OSX) || os(iOS)
+#if os(macOS) || os(iOS)
         return NSLocale.LanguageDirection(rawValue: UInt(dir.rawValue))!
 #else
         return NSLocale.LanguageDirection(rawValue: UInt(dir))!
@@ -184,7 +157,7 @@ extension NSLocale {
     
     open class func lineDirection(forLanguage isoLangCode: String) -> NSLocale.LanguageDirection {
         let dir = CFLocaleGetLanguageLineDirection(isoLangCode._cfObject)
-#if os(OSX) || os(iOS)
+#if os(macOS) || os(iOS)
         return NSLocale.LanguageDirection(rawValue: UInt(dir.rawValue))!
 #else
         return NSLocale.LanguageDirection(rawValue: UInt(dir))!
@@ -194,7 +167,7 @@ extension NSLocale {
 
 extension NSLocale {
 
-    public struct Key : RawRepresentable, Equatable, Hashable, Comparable {
+    public struct Key : RawRepresentable, Equatable, Hashable {
         public private(set) var rawValue: String
         public init(rawValue: String) {
             self.rawValue = rawValue
@@ -236,17 +209,16 @@ extension NSLocale {
 }
 
 
-public func ==(_ lhs: NSLocale.Key, _ rhs: NSLocale.Key) -> Bool {
-    return lhs.rawValue == rhs.rawValue
+extension NSLocale.Key {
+    public static func ==(_ lhs: NSLocale.Key, _ rhs: NSLocale.Key) -> Bool {
+        return lhs.rawValue == rhs.rawValue
+    }
 }
 
-public func <(_ lhs: NSLocale.Key, _ rhs: NSLocale.Key) -> Bool {
-    return lhs.rawValue < rhs.rawValue
+
+public extension NSLocale {
+    public static let currentLocaleDidChangeNotification = NSNotification.Name(rawValue: "kCFLocaleCurrentLocaleDidChangeNotification")
 }
-
-
-
-public let NSCurrentLocaleDidChangeNotification: String = "kCFLocaleCurrentLocaleDidChangeNotification"
 
 
 extension CFLocale : _NSBridgeable, _SwiftBridgeable {

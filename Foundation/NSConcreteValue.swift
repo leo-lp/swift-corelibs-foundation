@@ -9,7 +9,7 @@
 
 import CoreFoundation
 
-#if os(OSX) || os(iOS)
+#if os(macOS) || os(iOS)
     import Darwin
 #elseif os(Linux) || CYGWIN
     import Glibc
@@ -39,7 +39,7 @@ internal class NSConcreteValue : NSValue {
                 
                 scanner.scanLocation = 1
                 
-                guard scanner.scanInteger(&count) && count > 0 else {
+                guard scanner.scanInt(&count) && count > 0 else {
                     print("NSConcreteValue.TypeInfo: array count is missing or zero")
                     return nil
                 }
@@ -91,17 +91,17 @@ internal class NSConcreteValue : NSValue {
 
         self._typeInfo = typeInfo!
 
-        self._storage = UnsafeMutableRawPointer.allocate(bytes: self._typeInfo.size, alignedTo: 1)
-        self._storage.copyBytes(from: value, count: self._typeInfo.size)
+        self._storage = UnsafeMutableRawPointer.allocate(byteCount: self._typeInfo.size, alignment: 1)
+        self._storage.copyMemory(from: value, byteCount: self._typeInfo.size)
     }
 
     deinit {
         // Cannot deinitialize raw memory.
-        self._storage.deallocate(bytes: self._size, alignedTo: 1)
+        self._storage.deallocate()
     }
     
     override func getValue(_ value: UnsafeMutableRawPointer) {
-        value.copyBytes(from: self._storage, count: self._size)
+        value.copyMemory(from: self._storage, byteCount: self._size)
     }
     
     override var objCType : UnsafePointer<Int8> {
@@ -167,17 +167,13 @@ internal class NSConcreteValue : NSValue {
     }
     
     override func isEqual(_ value: Any?) -> Bool {
-        if let other = value as? NSConcreteValue {
-            return self._typeInfo == other._typeInfo &&
-                   self._isEqualToValue(other)
-        } else {
-            return false
-        }
+        guard let other = value as? NSConcreteValue else { return false }
+        return self._typeInfo == other._typeInfo && self._isEqualToValue(other)
     }
 
     override var hash: Int {
         return self._typeInfo.name.hashValue &+
-            Int(bitPattern: CFHashBytes(unsafeBitCast(self.value, to: UnsafeMutablePointer<UInt8>.self), self._size))
+            Int(bitPattern: CFHashBytes(self.value.assumingMemoryBound(to: UInt8.self), self._size))
     }
 }
 

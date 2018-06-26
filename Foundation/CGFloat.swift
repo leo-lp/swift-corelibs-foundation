@@ -13,7 +13,7 @@ public struct CGFloat {
     /// The native type used to store the CGFloat, which is Float on
     /// 32-bit architectures and Double on 64-bit architectures.
     public typealias NativeType = Float
-#elseif arch(x86_64) || arch(arm64) || arch(s390x)
+#elseif arch(x86_64) || arch(arm64) || arch(s390x) || arch(powerpc64) || arch(powerpc64le)
     /// The native type used to store the CGFloat, which is Float on
     /// 32-bit architectures and Double on 64-bit architectures.
     public typealias NativeType = Double
@@ -145,6 +145,19 @@ public struct CGFloat {
     public var native: NativeType
 }
 
+extension CGFloat : SignedNumeric {
+    // FIXME(integers): implement
+    public init?<T : BinaryInteger>(exactly source: T) {
+      fatalError()
+    }
+
+    @_transparent
+    public var magnitude: CGFloat {
+        return CGFloat(Swift.abs(native))
+    }
+
+}
+
 extension CGFloat : BinaryFloatingPoint {
     
     public typealias RawSignificand = UInt
@@ -172,7 +185,7 @@ extension CGFloat : BinaryFloatingPoint {
     public init(bitPattern: UInt) {
 #if arch(i386) || arch(arm)
         native = NativeType(bitPattern: UInt32(bitPattern))
-#elseif arch(x86_64) || arch(arm64) || arch(s390x)
+#elseif arch(x86_64) || arch(arm64) || arch(s390x) || arch(powerpc64) || arch(powerpc64le)
         native = NativeType(bitPattern: UInt64(bitPattern))
 #endif
     }
@@ -279,33 +292,28 @@ extension CGFloat : BinaryFloatingPoint {
     }
 
     @_transparent
-    public var magnitude: CGFloat {
-        return CGFloat(Swift.abs(native))
-    }
-
-    @_transparent
     public mutating func negate() {
         native.negate()
     }
 
     @_transparent
-    public mutating func add(_ other: CGFloat) {
-        native.add(other.native)
+    public static func +=(_ lhs: inout CGFloat, _ rhs: CGFloat) {
+        lhs.native += rhs.native
     }
 
     @_transparent
-    public mutating func subtract(_ other: CGFloat) {
-        native.subtract(other.native)
+    public static func -=(_ lhs: inout CGFloat, _ rhs: CGFloat) {
+        lhs.native -= rhs.native
     }
 
     @_transparent
-    public mutating func multiply(by other: CGFloat) {
-        native.multiply(by: other.native)
+    public static func *=(_ lhs: inout CGFloat, _ rhs: CGFloat) {
+        lhs.native *= rhs.native
     }
 
     @_transparent
-    public mutating func divide(by other: CGFloat) {
-        native.divide(by: other.native)
+    public static func /=(_ lhs: inout CGFloat, _ rhs: CGFloat) {
+        lhs.native /= rhs.native
     }
 
     @_transparent
@@ -564,45 +572,36 @@ extension Float {
 //  tweaking the overload resolution rules, or by removing the other
 //  definitions in the standard lib, or both.
 
-@_transparent
-public func +(lhs: CGFloat, rhs: CGFloat) -> CGFloat {
-    return lhs.adding(rhs)
+extension CGFloat {
+    @_transparent
+    public static func +(lhs: CGFloat, rhs: CGFloat) -> CGFloat {
+        var lhs = lhs
+        lhs += rhs
+        return lhs
+    }
+
+    @_transparent
+    public static func -(lhs: CGFloat, rhs: CGFloat) -> CGFloat {
+        var lhs = lhs
+        lhs -= rhs
+        return lhs
+    }
+
+    @_transparent
+    public static func *(lhs: CGFloat, rhs: CGFloat) -> CGFloat {
+        var lhs = lhs
+        lhs *= rhs
+        return lhs
+    }
+
+    @_transparent
+    public static func /(lhs: CGFloat, rhs: CGFloat) -> CGFloat {
+        var lhs = lhs
+        lhs /= rhs
+        return lhs
+    }
 }
 
-@_transparent
-public func -(lhs: CGFloat, rhs: CGFloat) -> CGFloat {
-    return lhs.subtracting(rhs)
-}
-
-@_transparent
-public func *(lhs: CGFloat, rhs: CGFloat) -> CGFloat {
-    return lhs.multiplied(by: rhs)
-}
-
-@_transparent
-public func /(lhs: CGFloat, rhs: CGFloat) -> CGFloat {
-    return lhs.divided(by: rhs)
-}
-
-@_transparent
-public func +=(lhs: inout CGFloat, rhs: CGFloat) {
-    lhs.add(rhs)
-}
-
-@_transparent
-public func -=(lhs: inout CGFloat, rhs: CGFloat) {
-    lhs.subtract(rhs)
-}
-
-@_transparent
-public func *=(lhs: inout CGFloat, rhs: CGFloat) {
-    lhs.multiply(by: rhs)
-}
-
-@_transparent
-public func /=(lhs: inout CGFloat, rhs: CGFloat) {
-    lhs.divide(by: rhs)
-}
 
 //===----------------------------------------------------------------------===//
 // Strideable Conformance
@@ -869,7 +868,7 @@ public func modf(_ x: CGFloat) -> (CGFloat, CGFloat) {
 
 @_transparent
 public func ldexp(_ x: CGFloat, _ n: Int) -> CGFloat {
-    return CGFloat(ldexp(x.native, n))
+    return CGFloat(scalbn(x.native, n))
 }
 
 @_transparent
@@ -880,7 +879,7 @@ public func frexp(_ x: CGFloat) -> (CGFloat, Int) {
 
 @_transparent
 public func ilogb(_ x: CGFloat) -> Int {
-    return ilogb(x.native)
+    return x.native.exponent
 }
 
 @_transparent
@@ -948,5 +947,37 @@ extension CGFloat : _CVarArgPassedAsDouble, _CVarArgAligned {
     @_transparent
     public var _cVarArgAlignment: Int { 
         return native._cVarArgAlignment
+    }
+}
+
+extension CGFloat : Codable {
+    @_transparent
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        do {
+            self.native = try container.decode(NativeType.self)
+        } catch DecodingError.typeMismatch(let type, let context) {
+            // We may have encoded as a different type on a different platform. A
+            // strict fixed-format decoder may disallow a conversion, so let's try the
+            // other type.
+            do {
+                if NativeType.self == Float.self {
+                    self.native = NativeType(try container.decode(Double.self))
+                } else {
+                    self.native = NativeType(try container.decode(Float.self))
+                }
+            } catch {
+                // Failed to decode as the other type, too. This is neither a Float nor
+                // a Double. Throw the old error; we don't want to clobber the original
+                // info.
+                throw DecodingError.typeMismatch(type, context)
+            }
+        }
+    }
+    
+    @_transparent
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(self.native)
     }
 }

@@ -7,18 +7,6 @@
 // See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 
-
-
-#if DEPLOYMENT_RUNTIME_OBJC || os(Linux)
-    import Foundation
-    import XCTest
-#else
-    import SwiftFoundation
-    import SwiftXCTest
-#endif
-
-
-
 class TestNSOrderedSet : XCTestCase {
 
     static var allTests: [(String, (TestNSOrderedSet) -> () throws -> Void)] {
@@ -43,7 +31,8 @@ class TestNSOrderedSet : XCTestCase {
             ("test_ReplaceObject", test_ReplaceObject),
             ("test_ExchangeObjects", test_ExchangeObjects),
             ("test_MoveObjects", test_MoveObjects),
-            ("test_InserObjects", test_InsertObjects),
+            ("test_InsertObjects", test_InsertObjects),
+            ("test_Insert", test_Insert),
             ("test_SetObjectAtIndex", test_SetObjectAtIndex),
             ("test_RemoveObjectsInRange", test_RemoveObjectsInRange),
             ("test_ReplaceObjectsAtIndexes", test_ReplaceObjectsAtIndexes),
@@ -133,7 +122,7 @@ class TestNSOrderedSet : XCTestCase {
 //    func test_GetObjects() {
 //        let set = NSOrderedSet(array: ["foo", "bar", "baz"])
 //        var objects = [Any]()
-//        set.getObjects(&objects, range: NSMakeRange(1, 2))
+//        set.getObjects(&objects, range: NSRange(location: 1, length: 2))
 //        XCTAssertEqual(objects[0] as? NSString, "bar")
 //        XCTAssertEqual(objects[1] as? NSString, "baz")
 //    }
@@ -207,10 +196,11 @@ class TestNSOrderedSet : XCTestCase {
     func test_ReplaceObject() {
         let set = NSMutableOrderedSet(arrayLiteral: "foo", "bar", "baz")
         set.replaceObject(at: 1, with: "123")
+        set[2] = "456"
         XCTAssertEqual(set.count, 3)
         XCTAssertEqual(set[0] as? String, "foo")
         XCTAssertEqual(set[1] as? String, "123")
-        XCTAssertEqual(set[2] as? String, "baz")
+        XCTAssertEqual(set[2] as? String, "456")
     }
 
     func test_ExchangeObjects() {
@@ -251,6 +241,16 @@ class TestNSOrderedSet : XCTestCase {
         XCTAssertEqual(set[4] as? String, "baz")
     }
 
+    func test_Insert() {
+        let set = NSMutableOrderedSet()
+        set.insert("foo", at: 0)
+        XCTAssertEqual(set.count, 1)
+        XCTAssertEqual(set[0] as? String, "foo")
+        set.insert("bar", at: 1)
+        XCTAssertEqual(set.count, 2)
+        XCTAssertEqual(set[1] as? String, "bar")
+    }
+
     func test_SetObjectAtIndex() {
         let set = NSMutableOrderedSet(arrayLiteral: "foo", "bar", "baz")
         set.setObject("123", at: 1)
@@ -263,7 +263,7 @@ class TestNSOrderedSet : XCTestCase {
 
     func test_RemoveObjectsInRange() {
         let set = NSMutableOrderedSet(arrayLiteral: "foo", "bar", "baz", "123", "456")
-        set.removeObjects(in: NSMakeRange(1, 2))
+        set.removeObjects(in: NSRange(location: 1, length: 2))
         XCTAssertEqual(set.count, 3)
         XCTAssertEqual(set[0] as? String, "foo")
         XCTAssertEqual(set[1] as? String, "123")
@@ -347,18 +347,18 @@ class TestNSOrderedSet : XCTestCase {
             if let lhs = lhs as? String, let rhs = rhs as? String {
                 return lhs.compare(rhs)
             }
-            return ComparisonResult.orderedSame
+            return .orderedSame
         }
         XCTAssertEqual(set[0] as? String, "a")
         XCTAssertEqual(set[1] as? String, "b")
         XCTAssertEqual(set[2] as? String, "c")
         XCTAssertEqual(set[3] as? String, "d")
 
-        set.sortRange(NSMakeRange(1, 2), options: []) { lhs, rhs in
+        set.sortRange(NSRange(location: 1, length: 2), options: []) { lhs, rhs in
             if let lhs = lhs as? String, let rhs = rhs as? String {
                 return rhs.compare(lhs)
             }
-            return ComparisonResult.orderedSame
+            return .orderedSame
         }
         XCTAssertEqual(set[0] as? String, "a")
         XCTAssertEqual(set[1] as? String, "c")

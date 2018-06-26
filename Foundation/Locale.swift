@@ -221,7 +221,7 @@ public struct Locale : CustomStringConvertible, CustomDebugStringConvertible, Ha
     /// -seealso: MeasurementFormatter
     public var usesMetricSystem: Bool {
         // NSLocale should not return nil here, but just in case
-        if let result = (_wrapped.object(forKey: .usesMetricSystem) as? NSNumber)?.boolValue {
+        if let result = _wrapped.object(forKey: .usesMetricSystem) as? Bool {
             return result
         } else {
             return false
@@ -428,18 +428,18 @@ public struct Locale : CustomStringConvertible, CustomDebugStringConvertible, Ha
             return _wrapped.hash
         }
     }
-}
 
-public func ==(lhs: Locale, rhs: Locale) -> Bool {
-    if lhs._autoupdating || rhs._autoupdating {
-        return lhs._autoupdating == rhs._autoupdating
-    } else {
-        return lhs._wrapped.isEqual(rhs._wrapped)
+    public static func ==(lhs: Locale, rhs: Locale) -> Bool {
+        if lhs._autoupdating || rhs._autoupdating {
+            return lhs._autoupdating == rhs._autoupdating
+        } else {
+            return lhs._wrapped.isEqual(rhs._wrapped)
+        }
     }
 }
 
 
-extension Locale : _ObjectTypeBridgeable {
+extension Locale : _ObjectiveCBridgeable {
     public static func _isBridgedToObjectiveC() -> Bool {
         return true
     }
@@ -464,5 +464,22 @@ extension Locale : _ObjectTypeBridgeable {
         var result: Locale? = nil
         _forceBridgeFromObjectiveC(source!, result: &result)
         return result!
+    }
+}
+
+extension Locale : Codable {
+    private enum CodingKeys : Int, CodingKey {
+        case identifier
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let identifier = try container.decode(String.self, forKey: .identifier)
+        self.init(identifier: identifier)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.identifier, forKey: .identifier)
     }
 }

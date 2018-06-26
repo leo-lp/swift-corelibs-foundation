@@ -20,7 +20,7 @@ internal final class _NSCFArray : NSMutableArray {
         fatalError()
     }
     
-    required init(objects: UnsafePointer<AnyObject>!, count cnt: Int) {
+    required init(objects: UnsafePointer<AnyObject>?, count cnt: Int) {
         fatalError()
     }
     
@@ -34,7 +34,7 @@ internal final class _NSCFArray : NSMutableArray {
     
     override func object(at index: Int) -> Any {
         let value = CFArrayGetValueAtIndex(_cfObject, index)
-        return _SwiftValue.fetch(unsafeBitCast(value, to: AnyObject.self))
+        return _SwiftValue.fetch(nonOptional: unsafeBitCast(value, to: AnyObject.self))
     }
     
     override func insert(_ value: Any, at index: Int) {
@@ -62,7 +62,7 @@ internal func _CFSwiftArrayGetValueAtIndex(_ array: AnyObject, _ index: CFIndex)
     } else {
         let value = _SwiftValue.store(arr.object(at: index))
         let container: NSMutableDictionary
-        if arr._storage.count == 0 {
+        if arr._storage.isEmpty {
             container = NSMutableDictionary()
             arr._storage.append(container)
         } else {
@@ -84,7 +84,7 @@ internal func _CFSwiftArrayGetValues(_ array: AnyObject, _ range: CFRange, _ val
             let index = idx + range.location
             let value = _SwiftValue.store(arr.object(at: index))
             let container: NSMutableDictionary
-            if arr._storage.count == 0 {
+            if arr._storage.isEmpty {
                 container = NSMutableDictionary()
                 arr._storage.append(container)
             } else {
@@ -126,5 +126,5 @@ internal func _CFSwiftArrayRemoveAllValues(_ array: AnyObject) {
 
 internal func _CFSwiftArrayReplaceValues(_ array: AnyObject, _ range: CFRange, _ newValues: UnsafeMutablePointer<Unmanaged<AnyObject>>, _ newCount: CFIndex) {
     NSUnimplemented()
-//    (array as! NSMutableArray).replaceObjectsInRange(NSMakeRange(range.location, range.length), withObjectsFromArray: newValues.array(newCount))
+//    (array as! NSMutableArray).replaceObjectsInRange(NSRange(location: range.location, length: range.length), withObjectsFrom: newValues.array(newCount))
 }

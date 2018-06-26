@@ -34,7 +34,7 @@ open class NSSet : NSObject, NSCopying, NSMutableCopying, NSSecureCoding, NSCodi
         guard type(of: self) === NSSet.self || type(of: self) === NSMutableSet.self || type(of: self) === NSCountedSet.self else {
             NSRequiresConcreteImplementation()
         }
-        return NSGeneratorEnumerator(_storage.map { _SwiftValue.fetch($0) }.makeIterator())
+        return NSGeneratorEnumerator(_storage.map { _SwiftValue.fetch(nonOptional: $0) }.makeIterator())
     }
 
     public convenience override init() {
@@ -46,7 +46,7 @@ open class NSSet : NSObject, NSCopying, NSMutableCopying, NSSecureCoding, NSCodi
         super.init()
         let buffer = UnsafeBufferPointer(start: objects, count: cnt)
         for obj in buffer {
-            _storage.insert(obj as! NSObject)
+            _storage.insert(_SwiftValue.store(obj))
         }
     }
     
@@ -107,19 +107,24 @@ open class NSSet : NSObject, NSCopying, NSMutableCopying, NSSecureCoding, NSCodi
         return true
     }
     
-    open func description(withLocale locale: Locale?) -> String { NSUnimplemented() }
+    open func description(withLocale locale: Locale?) -> String { 
+      // NSUnimplemented() 
+      return description
+    }
     
     override open var _cfTypeID: CFTypeID {
         return CFSetGetTypeID()
     }
 
     open override func isEqual(_ value: Any?) -> Bool {
-        if let other = value as? Set<AnyHashable> {
+        switch value {
+        case let other as Set<AnyHashable>:
             return isEqual(to: other)
-        } else if let other = value as? NSSet {
+        case let other as NSSet:
             return isEqual(to: Set._unconditionallyBridgeFromObjectiveC(other))
+        default:
+            return false
         }
-        return false
     }
 
     open override var hash: Int {
@@ -133,7 +138,7 @@ open class NSSet : NSObject, NSCopying, NSMutableCopying, NSSecureCoding, NSCodi
         }
         self.init(objects: buffer, count: array.count)
         buffer.deinitialize(count: array.count)
-        buffer.deallocate(capacity: array.count)
+        buffer.deallocate()
     }
 
     public convenience init(set: Set<AnyHashable>) {
@@ -150,7 +155,7 @@ open class NSSet : NSObject, NSCopying, NSMutableCopying, NSSecureCoding, NSCodi
                 }
             })
         } else {
-            self.init(array: set.map { $0 })
+            self.init(array: Array(set))
         }
     }
 }
@@ -166,7 +171,7 @@ extension NSSet {
     
     open var allObjects: [Any] {
         if type(of: self) === NSSet.self || type(of: self) === NSMutableSet.self {
-            return _storage.map { _SwiftValue.fetch($0) }
+            return _storage.map { _SwiftValue.fetch(nonOptional: $0) }
         } else {
             let enumerator = objectEnumerator()
             var items = [Any]()
@@ -219,7 +224,7 @@ extension NSSet {
     open func addingObjects(from other: Set<AnyHashable>) -> Set<AnyHashable> {
         var result = Set<AnyHashable>(minimumCapacity: Swift.max(count, other.count))
         if type(of: self) === NSSet.self || type(of: self) === NSMutableSet.self {
-            result.formUnion(_storage.map { _SwiftValue.fetch($0) as! AnyHashable })
+            result.formUnion(_storage.map { _SwiftValue.fetch(nonOptional: $0) as! AnyHashable })
         } else {
             for case let obj as NSObject in self {
                 _ = result.insert(obj)
@@ -231,7 +236,7 @@ extension NSSet {
     open func addingObjects(from other: [Any]) -> Set<AnyHashable> {
         var result = Set<AnyHashable>(minimumCapacity: count)
         if type(of: self) === NSSet.self || type(of: self) === NSMutableSet.self {
-            result.formUnion(_storage.map { _SwiftValue.fetch($0) as! AnyHashable })
+            result.formUnion(_storage.map { _SwiftValue.fetch(nonOptional: $0) as! AnyHashable })
         } else {
             for case let obj as AnyHashable in self {
                 result.insert(obj)
@@ -253,7 +258,7 @@ extension NSSet {
             withUnsafeMutablePointer(to: &stop) { stop in
                 block(obj, stop)
             }
-            if stop {
+            if stop.boolValue {
                 break
             }
         }
@@ -421,7 +426,7 @@ open class NSCountedSet : NSMutableSet {
     }
 
     public convenience init(set: Set<AnyHashable>) {
-        self.init(array: set.map { $0 })
+        self.init(array: Array(set))
     }
 
     public required convenience init?(coder: NSCoder) { NSUnimplemented() }

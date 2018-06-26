@@ -10,27 +10,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-// Support protocols for casting
-public protocol _ObjectBridgeable {
-    func _bridgeToAnyObject() -> AnyObject
-}
+import CoreFoundation
+
+#if canImport(ObjectiveC)
+import ObjectiveC
+#endif
 
 public protocol _StructBridgeable {
     func _bridgeToAny() -> Any
 }
 
-/// - Note: This is a similar interface to the _ObjectiveCBridgeable protocol
-public protocol _ObjectTypeBridgeable : _ObjectBridgeable {
-    associatedtype _ObjectType : AnyObject
-    
-    func _bridgeToObjectiveC() -> _ObjectType
-    
-    static func _forceBridgeFromObjectiveC(_ source: _ObjectType, result: inout Self?)
-    
-    @discardableResult
-    static func _conditionallyBridgeFromObjectiveC(_ source: _ObjectType, result: inout Self?) -> Bool
-    
-    static func _unconditionallyBridgeFromObjectiveC(_ source: _ObjectType?) -> Self
+fileprivate protocol Unwrappable {
+    func unwrap() -> Any?
+}
+
+extension Optional: Unwrappable {
+    func unwrap() -> Any? {
+        return self
+    }
 }
 
 /// - Note: This does not exist currently on Darwin but it is the inverse correlation to the bridge types such that a 
@@ -42,7 +39,7 @@ public protocol _StructTypeBridgeable : _StructBridgeable {
 }
 
 // Default adoption of the type specific variants to the Any variant
-extension _ObjectTypeBridgeable {
+extension _ObjectiveCBridgeable {
     public func _bridgeToAnyObject() -> AnyObject {
         return _bridgeToObjectiveC()
     }
@@ -71,25 +68,110 @@ internal protocol _NSBridgeable {
 }
 
 
+#if !canImport(ObjectiveC)
+// The _NSSwiftValue protocol is in the stdlib, and only available on platforms without ObjC.
+extension _SwiftValue: _NSSwiftValue {}
+#endif
+
 /// - Note: This is an internal boxing value for containing abstract structures
 internal final class _SwiftValue : NSObject, NSCopying {
-    internal private(set) var value: Any
+    public private(set) var value: Any
     
     static func fetch(_ object: AnyObject?) -> Any? {
         if let obj = object {
-            return fetch(obj)
+            let value = fetch(nonOptional: obj)
+            if let wrapper = value as? Unwrappable, wrapper.unwrap() == nil {
+                return nil
+            } else {
+                return value
+            }
         }
         return nil
     }
     
-    static func fetch(_ object: AnyObject) -> Any {
-        if let container = object as? _SwiftValue {
+    #if canImport(ObjectiveC)
+    private static var _objCNSNullClassStorage: Any.Type?
+    private static var objCNSNullClass: Any.Type? {
+        if let type = _objCNSNullClassStorage {
+            return type
+        }
+        
+        let name = "NSNull"
+        let maybeType = name.withCString { cString in
+            return objc_getClass(cString)
+        }
+        
+        if let type = maybeType as? Any.Type {
+            _objCNSNullClassStorage = type
+            return type
+        } else {
+            return nil
+        }
+    }
+    
+    private static var _swiftStdlibSwiftValueClassStorage: Any.Type?
+    private static var swiftStdlibSwiftValueClass: Any.Type? {
+        if let type = _swiftStdlibSwiftValueClassStorage {
+            return type
+        }
+        
+        let name = "_SwiftValue"
+        let maybeType = name.withCString { cString in
+            return objc_getClass(cString)
+        }
+        
+        if let type = maybeType as? Any.Type {
+            _swiftStdlibSwiftValueClassStorage = type
+            return type
+        } else {
+            return nil
+        }
+    }
+    
+    #endif
+    
+    static func fetch(nonOptional object: AnyObject) -> Any {
+        #if canImport(ObjectiveC)
+        // You can pass the result of a `as AnyObject` expression to this method. This can have one of three results on Darwin:
+        // - It's a SwiftFoundation type. Bridging will take care of it below.
+        // - It's nil. The compiler is hardcoded to return [NSNull null] for nils.
+        // - It's some other Swift type. The compiler will box it in a native _SwiftValue.
+        // Case 1 is handled below.
+        // Case 2 is handled here:
+        if type(of: object as Any) == objCNSNullClass {
+            return Optional<Any>.none as Any
+        }
+        // Case 3 is handled here:
+        if type(of: object as Any) == swiftStdlibSwiftValueClass {
+            return object
+            // Since this returns Any, the object is casted almost immediately — e.g.:
+            //   _SwiftValue.fetch(x) as SomeStruct
+            // which will immediately unbox the native box. For callers, it will be exactly
+            // as if we returned the unboxed value directly.
+        }
+        
+        // On Linux, case 2 is handled by the stdlib bridging machinery, and case 3 can't happen —
+        // the compiler will produce SwiftFoundation._SwiftValue boxes rather than ObjC ones.
+        #endif
+        
+        if object === kCFBooleanTrue {
+            return true
+        } else if object === kCFBooleanFalse {
+            return false
+        } else if let container = object as? _SwiftValue {
             return container.value
         } else if let val = object as? _StructBridgeable {
             return val._bridgeToAny()
         } else {
             return object
         }
+    }
+    
+    static func store(optional value: Any?) -> NSObject? {
+        if let val = value {
+            return store(val)
+        }
+        return nil
     }
     
     static func store(_ value: Any?) -> NSObject? {
@@ -102,10 +184,20 @@ internal final class _SwiftValue : NSObject, NSCopying {
     static func store(_ value: Any) -> NSObject {
         if let val = value as? NSObject {
             return val
-        } else if let val = value as? _ObjectBridgeable {
-            return val._bridgeToAnyObject() as! NSObject
+        } else if let opt = value as? Unwrappable, opt.unwrap() == nil {
+            return NSNull()
         } else {
-            return _SwiftValue(value)
+            #if canImport(ObjectiveC)
+                // On Darwin, this can be a native (ObjC) _SwiftValue.
+                let boxed = (value as AnyObject)
+                if !(boxed is NSObject) {
+                    return _SwiftValue(value) // Do not emit native boxes — wrap them in Swift Foundation boxes instead.
+                } else {
+                    return boxed as! NSObject
+                }
+            #else
+                return (value as AnyObject) as! NSObject
+            #endif
         }
     }
     
@@ -121,23 +213,23 @@ internal final class _SwiftValue : NSObject, NSCopying {
     }
     
     override func isEqual(_ value: Any?) -> Bool {
-        if let other = value as? _SwiftValue {
-            if self === other {
-                return true
-            }
-            if let otherHashable = other.value as? AnyHashable,
-               let hashable = self.value as? AnyHashable {
-                return otherHashable == hashable
-            }
+        switch value {
+        case let other as _SwiftValue:
+            guard let left = other.value as? AnyHashable,
+                let right = self.value as? AnyHashable else { return self === other }
             
-        } else if let otherHashable = value as? AnyHashable,
-                  let hashable = self.value as? AnyHashable {
-            return otherHashable == hashable
+            return left == right
+        case let other as AnyHashable:
+            guard let hashable = self.value as? AnyHashable else { return false }
+            return other == hashable
+        default:
+            return false
         }
-        return false
     }
     
     public func copy(with zone: NSZone?) -> Any {
         return _SwiftValue(value)
     }
+    
+    public static let null: AnyObject = NSNull()
 }

@@ -14,7 +14,7 @@
 ///
 /// Note: This assumes that the result of calling copy() is mutable. The documentation says that classes which do not have a mutable/immutable distinction should just adopt NSCopying instead of NSMutableCopying.
 internal final class _MutableHandle<MutableType : NSObject> where MutableType : NSCopying {
-    fileprivate var _pointer : MutableType
+    @usableFromInline internal var _pointer : MutableType
     
     init(reference : MutableType) {
         _pointer = reference.copy() as! MutableType
@@ -106,10 +106,8 @@ extension _SwiftNativeFoundationType {
         switch __wrapped {
         case .Immutable(let i):
             i.release()
-            break
         case .Mutable(let m):
             m.release()
-            break
         }
     }
     
@@ -182,9 +180,9 @@ extension _MutablePairBoxing {
         
         // This check is done twice becaue: <rdar://problem/24939065> Value kept live for too long causing uniqueness check to fail
         switch (wrapper) {
-        case .Immutable(_):
+        case .Immutable:
             break
-        case .Mutable(_):
+        case .Mutable:
             unique = isKnownUniquelyReferenced(&_wrapped)
         }
         

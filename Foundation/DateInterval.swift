@@ -52,10 +52,7 @@ public struct DateInterval : ReferenceConvertible, Comparable, Hashable {
     ///
     /// - precondition: `end >= start`
     public init(start: Date, end: Date) {
-        if end < start {
-            fatalError("Reverse intervals are not allowed")
-        }
-        
+        precondition(end >= start, "Reverse intervals are not allowed")
         self.start = start
         duration = end.timeIntervalSince(start)
     }
@@ -155,8 +152,11 @@ public struct DateInterval : ReferenceConvertible, Comparable, Hashable {
     
     public var hashValue: Int {
         var buf: (UInt, UInt) = (UInt(start.timeIntervalSinceReferenceDate), UInt(end.timeIntervalSinceReferenceDate))
-        return withUnsafeMutablePointer(to: &buf) {
-            return Int(bitPattern: CFHashBytes(unsafeBitCast($0, to: UnsafeMutablePointer<UInt8>.self), CFIndex(MemoryLayout<UInt>.size * 2)))
+        return withUnsafeMutablePointer(to: &buf) { bufferPtr in
+            let count = MemoryLayout<UInt>.size * 2
+            return bufferPtr.withMemoryRebound(to: UInt8.self, capacity: count) { bufferBytes in
+                return Int(bitPattern: CFHashBytes(bufferBytes, CFIndex(count)))
+            }
         }
     }
     
@@ -183,11 +183,11 @@ extension DateInterval : CustomStringConvertible, CustomDebugStringConvertible, 
         c.append((label: "start", value: start))
         c.append((label: "end", value: end))
         c.append((label: "duration", value: duration))
-        return Mirror(self, children: c, displayStyle: Mirror.DisplayStyle.struct)
+        return Mirror(self, children: c, displayStyle: .struct)
     }
 }
 
-extension DateInterval : _ObjectTypeBridgeable {
+extension DateInterval : _ObjectiveCBridgeable {
     public static func _isBridgedToObjectiveC() -> Bool {
         return true
     }

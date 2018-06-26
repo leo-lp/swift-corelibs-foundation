@@ -10,7 +10,7 @@
 
 import CoreFoundation
 
-#if os(OSX) || os(iOS)
+#if os(macOS) || os(iOS)
     import Darwin.uuid
 #elseif os(Linux) || CYGWIN
     import Glibc
@@ -18,6 +18,11 @@ import CoreFoundation
 
 open class NSUUID : NSObject, NSCopying, NSSecureCoding, NSCoding {
     internal var buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 16)
+
+    deinit {
+         buffer.deinitialize(count: 1)
+         buffer.deallocate()
+    }
     
     public override init() {
         _cf_uuid_generate_random(buffer)
@@ -25,6 +30,10 @@ open class NSUUID : NSObject, NSCopying, NSSecureCoding, NSCoding {
     
     public convenience init?(uuidString string: String) {
         let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 16)
+        defer {
+            buffer.deinitialize(count: 1)
+            buffer.deallocate()
+        }
         if _cf_uuid_parse(string, buffer) != 0 {
             return nil
         }
@@ -32,7 +41,7 @@ open class NSUUID : NSObject, NSCopying, NSSecureCoding, NSCoding {
     }
     
     public init(uuidBytes bytes: UnsafePointer<UInt8>) {
-        memcpy(unsafeBitCast(buffer, to: UnsafeMutableRawPointer.self), UnsafeRawPointer(bytes), 16)
+        memcpy(UnsafeMutableRawPointer(buffer), UnsafeRawPointer(bytes), 16)
     }
     
     open func getBytes(_ uuid: UnsafeMutablePointer<UInt8>) {
@@ -41,6 +50,10 @@ open class NSUUID : NSObject, NSCopying, NSSecureCoding, NSCoding {
     
     open var uuidString: String {
         let strPtr = UnsafeMutablePointer<Int8>.allocate(capacity: 37)
+        defer {
+            strPtr.deinitialize(count: 1)
+            strPtr.deallocate()
+        }
         _cf_uuid_unparse_upper(buffer, strPtr)
         return String(cString: strPtr)
     }
@@ -69,6 +82,10 @@ open class NSUUID : NSObject, NSCopying, NSSecureCoding, NSCoding {
         guard let data = decodedData else { return nil }
         guard data.count == 16 else { return nil }
         let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 16)
+        defer {
+            buffer.deinitialize(count: 1)
+            buffer.deallocate()
+        }
         data.copyBytes(to: buffer, count: 16)
         self.init(uuidBytes: buffer)
     }
@@ -78,7 +95,8 @@ open class NSUUID : NSObject, NSCopying, NSSecureCoding, NSCoding {
     }
     
     open override func isEqual(_ value: Any?) -> Bool {
-        if let other = value as? UUID {
+        switch value {
+        case let other as UUID:
             return other.uuid.0 == buffer[0] &&
                 other.uuid.1 == buffer[1] &&
                 other.uuid.2 == buffer[2] &&
@@ -95,13 +113,11 @@ open class NSUUID : NSObject, NSCopying, NSSecureCoding, NSCoding {
                 other.uuid.13 == buffer[13] &&
                 other.uuid.14 == buffer[14] &&
                 other.uuid.15 == buffer[15]
-        } else if let other = value as? NSUUID {
-            if other === self {
-                return true
-            }
-            return _cf_uuid_compare(buffer, other.buffer) == 0
+        case let other as NSUUID:
+            return other === self || _cf_uuid_compare(buffer, other.buffer) == 0
+        default:
+            return false
         }
-        return false
     }
     
     open override var hash: Int {

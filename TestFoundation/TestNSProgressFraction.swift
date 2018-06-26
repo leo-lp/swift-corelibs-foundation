@@ -7,14 +7,7 @@
 // See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 
-#if DEPLOYMENT_RUNTIME_OBJC || os(Linux)
-import Foundation
-import XCTest
-#else
-import SwiftFoundation
-import SwiftXCTest
-#endif
-
+#if !DARWIN_COMPATIBILITY_TESTS
 class TestProgressFraction : XCTestCase {
     static var allTests: [(String, (TestProgressFraction) -> () throws -> Void)] {
         return [
@@ -104,7 +97,7 @@ class TestProgressFraction : XCTestCase {
             expectedResult = expectedResult + 1.0 / Double(d)
         }
         
-        XCTAssertEqualWithAccuracy(fractionResult, expectedResult, accuracy: 0.00001)
+        XCTAssertEqual(fractionResult, expectedResult, accuracy: 0.00001)
     }
     
     func test_addOverflow() {
@@ -126,7 +119,7 @@ class TestProgressFraction : XCTestCase {
         // And it should have completed value of about 1.0/4.0 + f1.fractionCompleted
         let expected = (1.0 / 4.0) + f1.fractionCompleted
         
-        XCTAssertEqualWithAccuracy(expected, f2.fractionCompleted, accuracy: 0.00001)
+        XCTAssertEqual(expected, f2.fractionCompleted, accuracy: 0.00001)
     }
     
     func test_andAndSubtractOverflow() {
@@ -159,4 +152,5 @@ class TestProgressFraction : XCTestCase {
         XCTAssertFalse(r.overflowed)
     }
 }
+#endif
 

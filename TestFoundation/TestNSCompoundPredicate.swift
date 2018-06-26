@@ -7,14 +7,6 @@
 // See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 
-#if DEPLOYMENT_RUNTIME_OBJC || os(Linux)
-    import Foundation
-    import XCTest
-#else
-    import SwiftFoundation
-    import SwiftXCTest
-#endif
-
 class TestNSCompoundPredicate: XCTestCase {
     
     static var allTests: [(String, (TestNSCompoundPredicate) -> () throws -> Void)] {
@@ -92,7 +84,7 @@ class TestNSCompoundPredicate: XCTestCase {
         var shortCircuited = true
 
         let bOK = NSPredicate(value: false)
-        let bDontEval = NSPredicate(block: { _ in
+        let bDontEval = NSPredicate(block: { (_, _) in
             shortCircuited = false
             return true
         })
@@ -106,7 +98,7 @@ class TestNSCompoundPredicate: XCTestCase {
         var shortCircuited = true
 
         let bOK = NSPredicate(value: true)
-        let bDontEval = NSPredicate(block: { _ in
+        let bDontEval = NSPredicate(block: { (_, _) in
             shortCircuited = false
             return true
         })

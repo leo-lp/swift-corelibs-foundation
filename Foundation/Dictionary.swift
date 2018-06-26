@@ -9,7 +9,7 @@
 
 import CoreFoundation
 
-extension Dictionary : _ObjectTypeBridgeable {
+extension Dictionary : _ObjectiveCBridgeable {
     
     public typealias _ObjectType = NSDictionary
     public func _bridgeToObjectiveC() -> _ObjectType {
@@ -30,8 +30,8 @@ extension Dictionary : _ObjectTypeBridgeable {
         
         keyBuffer.deinitialize(count: count)
         valueBuffer.deinitialize(count: count)
-        keyBuffer.deallocate(capacity: count)
-        valueBuffer.deallocate(capacity: count)
+        keyBuffer.deallocate()
+        valueBuffer.deallocate()
         
         return dict
 
@@ -65,8 +65,8 @@ extension Dictionary : _ObjectTypeBridgeable {
             CFDictionaryGetKeysAndValues(cf, keys, values)
 
             for idx in 0..<cnt {
-                let key = _SwiftValue.fetch(unsafeBitCast(keys.advanced(by: idx).pointee!, to: AnyObject.self))
-                let value = _SwiftValue.fetch(unsafeBitCast(values.advanced(by: idx).pointee!, to: AnyObject.self))
+                let key = _SwiftValue.fetch(nonOptional: unsafeBitCast(keys.advanced(by: idx).pointee!, to: AnyObject.self))
+                let value = _SwiftValue.fetch(nonOptional: unsafeBitCast(values.advanced(by: idx).pointee!, to: AnyObject.self))
                 guard let k = key as? Key, let v = value as? Value else {
                     failedConversion = true
                     break
@@ -75,8 +75,8 @@ extension Dictionary : _ObjectTypeBridgeable {
             }
             keys.deinitialize(count: cnt)
             values.deinitialize(count: cnt)
-            keys.deallocate(capacity: cnt)
-            values.deallocate(capacity: cnt)
+            keys.deallocate()
+            values.deallocate()
         }
         if !failedConversion {
             result = dict
